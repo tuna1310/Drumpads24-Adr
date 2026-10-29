@@ -52,7 +52,7 @@ class DrumPadsViewModel @Inject constructor(
                         }
                     }
                 } catch (_: Throwable) {
-                    // Fallback synthesis in AudioEngine is active
+                    // AudioEngine synthesized fallback handles this automatically
                 }
             }
         }
@@ -61,7 +61,6 @@ class DrumPadsViewModel @Inject constructor(
     private fun parseWavPcm(stream: InputStream): ShortArray? {
         val bytes = stream.readBytes()
         if (bytes.size < 44) return null
-        // Locate 'data' chunk
         var offset = 12
         while (offset + 8 <= bytes.size) {
             val chunkId = String(bytes, offset, 4)
@@ -95,12 +94,60 @@ class DrumPadsViewModel @Inject constructor(
         }
     }
 
+    // Navigation methods
+    fun selectTab(tab: NavTab) {
+        _uiState.update { it.copy(selectedTab = tab, activeScreen = ActiveScreen.MAIN) }
+    }
+
+    fun navigateTo(screen: ActiveScreen) {
+        _uiState.update { it.copy(activeScreen = screen) }
+    }
+
+    fun openPadPlayer(packName: String = "Neon Pulse 24") {
+        _uiState.update {
+            it.copy(
+                selectedPackName = packName,
+                activeScreen = ActiveScreen.PAD_PLAYER
+            )
+        }
+    }
+
+    fun selectBank(bank: PadBank) {
+        _uiState.update { it.copy(selectedBank = bank) }
+    }
+
+    fun toggleClipsMode() {
+        _uiState.update { it.copy(isClipsMode = !it.isClipsMode) }
+    }
+
+    fun toggleRecording() {
+        _uiState.update { it.copy(isRecording = !it.isRecording) }
+    }
+
+    fun toggleMiniPlayer() {
+        _uiState.update { it.copy(isMiniPlayerPlaying = !it.isMiniPlayerPlaying) }
+    }
+
+    // Settings & Toggles
     fun setHapticEnabled(enabled: Boolean) {
         _uiState.update { it.copy(isHapticEnabled = enabled) }
     }
 
+    fun setLightShowEnabled(enabled: Boolean) {
+        _uiState.update { it.copy(isLightShowEnabled = enabled) }
+    }
+
     fun toggleSettings(open: Boolean) {
-        _uiState.update { it.copy(isSettingsOpen = open) }
+        _uiState.update {
+            if (open) it.copy(activeScreen = ActiveScreen.SETTINGS, isSettingsOpen = true)
+            else it.copy(activeScreen = ActiveScreen.MAIN, isSettingsOpen = false)
+        }
+    }
+
+    fun updateProfile(name: String, bio: String, link: String) {
+        _uiState.update {
+            it.copy(userName = name, userBio = bio, userLink = link)
+        }
     }
 
     fun setStressTest(enabled: Boolean) {
