@@ -1,6 +1,6 @@
 # ADR-004: Định dạng dữ liệu JSON có version
 
-- **Trạng thái:** Proposed
+- **Trạng thái:** Accepted
 - **Ngày:** 2026-10-29
 
 ## Bối cảnh
@@ -23,3 +23,7 @@
 ## Hệ quả
 - **Lợi ích:** Dữ liệu minh bạch, chuẩn hóa hai nền tảng; an toàn cho dữ liệu người dùng khi cập nhật.
 - **Đánh đổi:** Kích thước file lớn hơn dạng nhị phân; cần viết và duy trì bộ migrator qua từng phiên bản.
+
+## Quyết định đã duyệt
+- Thống nhất áp dụng định dạng JSON có `schemaVersion` với schema chuẩn đặt trong `shared-specs/schema/`.
+- Sample tham chiếu bằng `id` ổn định; tách biệt hoàn toàn việc parse JSON khỏi audio thread; chuẩn bị sẵn fixture hợp lệ và không hợp lệ phục vụ kiểm thử tự động.

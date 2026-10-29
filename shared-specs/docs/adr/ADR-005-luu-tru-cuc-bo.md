@@ -1,6 +1,6 @@
 # ADR-005: Lưu trữ cục bộ
 
-- **Trạng thái:** Proposed
+- **Trạng thái:** Accepted
 - **Ngày:** 2026-10-29
 
 ## Bối cảnh
@@ -24,3 +24,7 @@
 ## Hệ quả
 - **Lợi ích:** Database nhỏ gọn, truy vấn nhanh; đọc file âm thanh vào audio engine với hiệu năng I/O tối đa.
 - **Đánh đổi:** Cần quản lý tính nhất quán giữa database và tệp trên đĩa; phải có tác vụ dọn dẹp file âm thanh mồ côi (orphaned files).
+
+## Quyết định đã duyệt
+- Thống nhất kiến trúc lưu trữ: Room (Android) và SwiftData (iOS) quản lý metadata; toàn bộ file audio và waveform cache lưu trực tiếp trên filesystem nội bộ.
+- Mọi thay đổi schema database bắt buộc phải có script migration và kiểm thử migration tự động trước khi release.

@@ -1,6 +1,6 @@
 # ADR-002: Audio engine
 
-- **Trạng thái:** Proposed
+- **Trạng thái:** Accepted
 - **Ngày:** 2026-10-29
 
 ## Bối cảnh
@@ -25,3 +25,9 @@
 ## Hệ quả
 - **Lợi ích:** Đạt độ trễ dưới 20 ms, loại bỏ xrun, âm thanh phát ổn định khi gõ 24 pad nhanh.
 - **Đánh đổi:** Tăng chi phí bảo trì mã C++/JNI trên Android; đòi hỏi kỷ luật lập trình audio khắt khe.
+
+## Quyết định đã duyệt
+- Ngưỡng chuyển AVAudioEngine sang AudioUnit trên iOS: Chuyển khi đo được một trong hai điều kiện trong bài test stress 32 voice đồng thời, chạy trong 60 giây:
+  1. Round-trip touch-to-sound latency > 20 ms, hoặc
+  2. Tỷ lệ dropped buffer (xrun) > 0.1%.
+- Thiết bị đo chuẩn là iPhone 11 (A13) hoặc iPhone SE (2020). Nếu đạt ngưỡng trên thiết bị này, mặc định tiếp tục sử dụng AVAudioEngine.

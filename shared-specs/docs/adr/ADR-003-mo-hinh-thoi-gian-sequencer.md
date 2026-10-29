@@ -1,6 +1,6 @@
 # ADR-003: Mô hình thời gian của sequencer
 
-- **Trạng thái:** Proposed
+- **Trạng thái:** Accepted
 - **Ngày:** 2026-10-29
 
 ## Bối cảnh
@@ -22,3 +22,7 @@ Sequencer 24 pad yêu cầu lập lịch và phát lặp chính xác tuyệt đ�
 ## Hệ quả
 - **Lợi ích:** Nhịp điệu chuẩn phòng thu, không trôi nhịp khi đổi BPM, độc lập tần số lấy mẫu.
 - **Đánh đổi:** Cần xử lý cẩn thận phép chuyển đổi giữa tick và sample time để tránh sai số làm tròn số học tích lũy.
+
+## Quyết định đã duyệt
+- Chốt cố định chuẩn PPQ = 960 cho toàn bộ mô hình thời gian của sequencer.
+- Thời gian nội bộ sử dụng số nguyên 64-bit (`Long` trên Kotlin, `Int64` trên Swift) để đảm bảo độ mịn thời gian cao nhất cho quantize 1/16, 1/32 và micro-timing swing 50%–75% mà không gây sai số tích lũy.

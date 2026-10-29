@@ -1,6 +1,6 @@
 # ADR-006: Tiêm phụ thuộc và kiến trúc UI
 
-- **Trạng thái:** Proposed
+- **Trạng thái:** Accepted
 - **Ngày:** 2026-10-29
 
 ## Bối cảnh
@@ -22,3 +22,7 @@ Lưới 24 pad và màn hình sequencer đòi hỏi phản hồi giao diện t�
 ## Hệ quả
 - **Lợi ích:** Tách bạch ranh giới nghiệp vụ; test suite chạy nhanh trên CI; UI phản hồi mượt theo state stream.
 - **Đánh đổi:** Cần viết thêm các lớp interface và adapter trung gian ban đầu.
+
+## Quyết định đã duyệt
+- Sequencer là pure domain module được viết riêng bằng Kotlin (Android) và Swift (iOS), kết nối audio qua interface adapter.
+- Cả hai nền tảng cùng nạp chung bộ JSON test vector từ `shared-specs/fixtures/test-vectors/` để assert unit test độc lập trên môi trường máy dev mà không cần thiết bị thật.

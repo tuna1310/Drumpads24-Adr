@@ -1,6 +1,6 @@
 # ADR-001: Chiến lược nền tảng
 
-- **Trạng thái:** Proposed
+- **Trạng thái:** Accepted
 - **Ngày:** 2026-10-29
 
 ## Bối cảnh
@@ -19,5 +19,6 @@
 - **Lợi ích:** Đạt độ trễ dưới 20 ms; kiểm soát tối đa pipeline render, luồng audio và bộ gom rác (GC) trên từng OS.
 - **Đánh đổi:** Tốn nguồn lực bảo trì hai codebase UI riêng biệt; khối lượng công việc tăng so với giải pháp cross-platform.
 
-## Câu hỏi mở
-- Cần quyết định mức độ chia sẻ mã nguồn logic: Sequencer thuần túy nên viết riêng theo từng nền tảng hay chia sẻ bằng C++ (xem [ADR-006](file:///shared-specs/docs/adr/ADR-006-tiem-phu-thuoc-va-kien-truc-ui.md))?
+## Quyết định đã duyệt
+- Sequencer được viết riêng bằng Kotlin trên Android và Swift trên iOS.
+- Dùng chung bộ test vector JSON trong `shared-specs/fixtures/test-vectors/` để cả hai nền tảng cùng nạp fixture kiểm thử; đảm bảo các kịch bản bắt buộc: BPM, tick offset, quantize 1/16 và 1/32, swing 50% đến 75%, modulo wrap-around.
