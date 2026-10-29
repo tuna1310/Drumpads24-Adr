@@ -12,3 +12,7 @@ build/
 DerivedData/
 .build/
 .swiftpm/
+.vscode/
+
+local.properties
+**/local.properties
