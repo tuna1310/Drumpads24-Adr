@@ -1,0 +1,14 @@
+.gradle/
+build/
+**/build/
+**/.gradle/
+*.class
+*.jar
+*.apk
+*.aab
+.idea/
+*.iml
+.DS_Store
+DerivedData/
+.build/
+.swiftpm/
