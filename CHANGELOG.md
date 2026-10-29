@@ -31,3 +31,6 @@ Tất cả các thay đổi đáng chú ý của dự án sẽ được ghi nh�
 - **Đo lường & Tiêu chuẩn:**
   - Tài liệu đo độ trễ và kiểm thử áp lực `shared-specs/benchmarks/m1-latency.md` kèm hướng dẫn đo touch-to-sound bằng camera 240 fps và loopback.
   - Fixture rỗng có cấu trúc `shared-specs/fixtures/test-vectors/sequencer-test-vectors.empty.json` chuẩn bị cho Sequencer ở M4.
+
+### Đã gỡ bỏ (Removed)
+- Gỡ bỏ runner mô phỏng độc lập (`RunM1Tests.java`) để bắt buộc chỉ xác thực kết quả kiểm thử bằng lệnh build và test thật từ Gradle và SwiftPM/Xcode theo nguyên tắc kỹ thuật nghiêm ngặt.
