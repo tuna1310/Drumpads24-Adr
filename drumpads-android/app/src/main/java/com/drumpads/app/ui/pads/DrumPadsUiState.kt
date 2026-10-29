@@ -55,6 +55,16 @@ data class DrumPadsUiState(
     val bpm: Int = 120,
     val isRecording: Boolean = false,
     val isClipsMode: Boolean = false,
+    val isPadLocked: Boolean = false,
+    val activeClips: Set<Int> = setOf(0),
+    val selectedClipIndex: Int = 0,
+    val isSoundFxOpen: Boolean = false,
+    val activeQuickFx: String? = null,
+    val volumeLevel: Float = 0.85f,
+    val echo116Level: Float = 0.3f,
+    val echo18Level: Float = 0.0f,
+    val reverbLevel: Float = 0.45f,
+    val distortionLevel: Float = 0.0f,
 
     // Mini Player
     val miniPlayerTrack: String? = "21 savage x baby keem x drake type beat",

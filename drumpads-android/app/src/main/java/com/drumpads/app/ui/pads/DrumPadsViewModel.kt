@@ -117,7 +117,141 @@ class DrumPadsViewModel @Inject constructor(
     }
 
     fun toggleClipsMode() {
-        _uiState.update { it.copy(isClipsMode = !it.isClipsMode) }
+        val next = !_uiState.value.isClipsMode
+        setClipsMode(next)
+    }
+
+    fun setClipsMode(isClips: Boolean) {
+        _uiState.update { it.copy(isClipsMode = isClips) }
+        if (isClips && _uiState.value.activeClips.isNotEmpty()) {
+            startClipLoop()
+        }
+    }
+
+    fun setPadLocked(locked: Boolean) {
+        _uiState.update { it.copy(isPadLocked = locked) }
+    }
+
+    fun adjustBpm(delta: Int) {
+        _uiState.update {
+            val newBpm = (it.bpm + delta).coerceIn(60, 200)
+            it.copy(bpm = newBpm)
+        }
+        if (clipLoopJob?.isActive == true) {
+            startClipLoop()
+        }
+    }
+
+    fun stopPlayback() {
+        clipLoopJob?.cancel()
+        _uiState.update { it.copy(activeClips = emptySet()) }
+    }
+
+    fun toggleClip(clipIndex: Int) {
+        _uiState.update { current ->
+            val next = if (current.activeClips.contains(clipIndex)) {
+                current.activeClips - clipIndex
+            } else {
+                current.activeClips + clipIndex
+            }
+            current.copy(activeClips = next, selectedClipIndex = clipIndex)
+        }
+        if (_uiState.value.activeClips.isNotEmpty()) {
+            startClipLoop()
+        } else {
+            clipLoopJob?.cancel()
+        }
+    }
+
+    fun selectClip(clipIndex: Int) {
+        _uiState.update { it.copy(selectedClipIndex = clipIndex) }
+    }
+
+    fun deleteSelectedClip() {
+        val sel = _uiState.value.selectedClipIndex
+        _uiState.update { it.copy(activeClips = it.activeClips - sel) }
+    }
+
+    fun duplicateSelectedClip() {
+        val sel = _uiState.value.selectedClipIndex
+        val nextSlot = (sel + 1) % 12
+        _uiState.update { it.copy(activeClips = it.activeClips + nextSlot, selectedClipIndex = nextSlot) }
+        startClipLoop()
+    }
+
+    private var clipLoopJob: Job? = null
+
+    private fun startClipLoop() {
+        clipLoopJob?.cancel()
+        clipLoopJob = viewModelScope.launch(Dispatchers.Default) {
+            var step = 0
+            while (_uiState.value.activeClips.isNotEmpty()) {
+                val bpm = _uiState.value.bpm
+                val stepMs = (60_000L / bpm) / 4
+                val active = _uiState.value.activeClips
+                if (active.contains(0) && (step % 8 == 0 || step % 8 == 6)) {
+                    audioEngine.triggerPad(0)
+                }
+                if (active.contains(1) && (step % 8 == 4)) {
+                    audioEngine.triggerPad(2)
+                }
+                if (active.contains(2) && (step % 2 == 0)) {
+                    audioEngine.triggerPad(4)
+                }
+                if (active.contains(3) && (step % 4 == 0)) {
+                    val noteIndex = 12 + ((step / 4) % 6)
+                    audioEngine.triggerPad(noteIndex)
+                }
+                if (active.contains(4) && (step % 8 == 2)) {
+                    audioEngine.triggerPad(6)
+                }
+                if (active.contains(5) && (step % 16 == 12)) {
+                    audioEngine.triggerPad(18)
+                }
+
+                delay(stepMs)
+                step = (step + 1) % 32
+            }
+        }
+    }
+
+    fun triggerQuickFx(fxName: String) {
+        if (_uiState.value.isHapticEnabled) {
+            hapticManager.playPadHaptic()
+        }
+        val padIndex = when (fxName.lowercase()) {
+            "horn" -> 20
+            "elphnt" -> 21
+            "reload" -> 19
+            "scrtch" -> 22
+            "vinyl" -> 23
+            "watch" -> 4
+            else -> 0
+        }
+        audioEngine.triggerPad(padIndex)
+        _uiState.update { it.copy(activeQuickFx = fxName) }
+        viewModelScope.launch {
+            delay(250)
+            _uiState.update { if (it.activeQuickFx == fxName) it.copy(activeQuickFx = null) else it }
+        }
+    }
+
+    fun toggleSoundFxTray() {
+        _uiState.update { it.copy(isSoundFxOpen = !it.isSoundFxOpen) }
+    }
+
+    fun setFaderLevel(fxType: String, level: Float) {
+        val clamped = level.coerceIn(0f, 1f)
+        _uiState.update {
+            when (fxType) {
+                "Volume" -> it.copy(volumeLevel = clamped)
+                "Echo 1/16" -> it.copy(echo116Level = clamped)
+                "Echo 1/8" -> it.copy(echo18Level = clamped)
+                "Reverb" -> it.copy(reverbLevel = clamped)
+                "Distortion" -> it.copy(distortionLevel = clamped)
+                else -> it
+            }
+        }
     }
 
     fun toggleRecording() {
@@ -177,6 +311,7 @@ class DrumPadsViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         stressJob?.cancel()
+        clipLoopJob?.cancel()
         audioEngine.stop()
     }
 }

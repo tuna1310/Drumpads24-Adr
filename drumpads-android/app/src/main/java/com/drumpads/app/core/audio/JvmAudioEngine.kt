@@ -94,6 +94,7 @@ class JvmAudioEngine : AudioEngine {
     private val stressTestActive = AtomicBoolean(false)
     private val xrunCount = AtomicInteger(0)
     private val timestampSequence = AtomicLong(0)
+    private var playbackThread: Thread? = null
 
     init {
         generateDefaultSamples()
@@ -101,13 +102,56 @@ class JvmAudioEngine : AudioEngine {
 
     private fun generateDefaultSamples() {
         val sampleRate = 44100
-        val length = (sampleRate * 0.3).toInt() // 300ms
+        val length = (sampleRate * 0.35).toInt()
+        val random = java.util.Random(42)
+
         for (p in 0 until 24) {
             val buf = FloatArray(length)
-            val freq = 100.0 + p * 25.0
-            for (i in 0 until length) {
-                val t = i.toDouble() / sampleRate
-                buf[i] = (sin(2.0 * Math.PI * freq * t) * exp(-t * 8.0)).toFloat()
+            when {
+                p < 6 -> {
+                    // DRUMS: Punchy kick, snappy snare, crisp hi-hat
+                    val startFreq = 160.0 - p * 15.0
+                    val endFreq = 45.0
+                    var phase = 0.0
+                    for (i in 0 until length) {
+                        val t = i.toDouble() / sampleRate
+                        val freq = startFreq * exp(-t * 22.0) + endFreq
+                        phase += 2.0 * Math.PI * freq / sampleRate
+                        val body = sin(phase) * exp(-t * 12.0)
+                        val noise = if (p in 2..5) {
+                            (random.nextDouble() * 2.0 - 1.0) * exp(-t * (if (p == 4) 40.0 else 18.0))
+                        } else 0.0
+                        buf[i] = ((body * 0.7 + noise * 0.4)).toFloat().coerceIn(-1.0f, 1.0f)
+                    }
+                }
+                p < 12 -> {
+                    // BASS: Deep warm sub and synth bass
+                    val freq = 55.0 + (p - 6) * 12.0
+                    for (i in 0 until length) {
+                        val t = i.toDouble() / sampleRate
+                        val s = (sin(2.0 * Math.PI * freq * t) + 0.3 * sin(4.0 * Math.PI * freq * t)) * exp(-t * 5.0)
+                        buf[i] = s.toFloat().coerceIn(-1.0f, 1.0f)
+                    }
+                }
+                p < 18 -> {
+                    // MELODY: Pluck leads
+                    val freqs = doubleArrayOf(261.63, 293.66, 329.63, 392.00, 440.00, 523.25)
+                    val freq = freqs[(p - 12) % freqs.size]
+                    for (i in 0 until length) {
+                        val t = i.toDouble() / sampleRate
+                        val s = (sin(2.0 * Math.PI * freq * t) + 0.2 * sin(6.0 * Math.PI * freq * t)) * exp(-t * 8.0)
+                        buf[i] = s.toFloat().coerceIn(-1.0f, 1.0f)
+                    }
+                }
+                else -> {
+                    // FX: Laser, crash, toms
+                    for (i in 0 until length) {
+                        val t = i.toDouble() / sampleRate
+                        val freq = 900.0 * exp(-t * 14.0) + 120.0
+                        val s = sin(2.0 * Math.PI * freq * t) * exp(-t * 7.0)
+                        buf[i] = s.toFloat().coerceIn(-1.0f, 1.0f)
+                    }
+                }
             }
             samples[p] = buf
         }
@@ -117,11 +161,67 @@ class JvmAudioEngine : AudioEngine {
 
     override fun start(): Boolean {
         isRunning.set(true)
+        startPlaybackThread()
         return true
+    }
+
+    private fun startPlaybackThread() {
+        try {
+            val sampleRate = 44100
+            val minBufferSize = android.media.AudioTrack.getMinBufferSize(
+                sampleRate,
+                android.media.AudioFormat.CHANNEL_OUT_MONO,
+                android.media.AudioFormat.ENCODING_PCM_16BIT
+            )
+            if (minBufferSize > 0) {
+                val audioTrack = android.media.AudioTrack(
+                    android.media.AudioManager.STREAM_MUSIC,
+                    sampleRate,
+                    android.media.AudioFormat.CHANNEL_OUT_MONO,
+                    android.media.AudioFormat.ENCODING_PCM_16BIT,
+                    minBufferSize * 2,
+                    android.media.AudioTrack.MODE_STREAM
+                )
+                audioTrack.play()
+                playbackThread = Thread {
+                    val chunkSize = 512
+                    val floatBuf = FloatArray(chunkSize)
+                    val shortBuf = ShortArray(chunkSize)
+                    while (isRunning.get()) {
+                        if (voicePool.getActiveVoiceCount() > 0) {
+                            voicePool.renderMixed(floatBuf, chunkSize)
+                            for (i in 0 until chunkSize) {
+                                val clamped = floatBuf[i].coerceIn(-1.0f, 1.0f)
+                                shortBuf[i] = (clamped * 32767.0f).toInt().toShort()
+                            }
+                            audioTrack.write(shortBuf, 0, chunkSize)
+                        } else {
+                            try {
+                                Thread.sleep(8)
+                            } catch (_: InterruptedException) {
+                                break
+                            }
+                        }
+                    }
+                    try {
+                        audioTrack.stop()
+                        audioTrack.release()
+                    } catch (_: Throwable) {}
+                }.apply {
+                    isDaemon = true
+                    priority = Thread.MAX_PRIORITY
+                    start()
+                }
+            }
+        } catch (_: Throwable) {
+            // Running in JVM unit test environment without Android framework
+        }
     }
 
     override fun stop() {
         isRunning.set(false)
+        playbackThread?.interrupt()
+        playbackThread = null
         voicePool.reset()
     }
 
