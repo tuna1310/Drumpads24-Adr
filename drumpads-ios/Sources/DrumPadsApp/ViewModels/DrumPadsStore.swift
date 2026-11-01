@@ -76,12 +76,31 @@ public final class DrumPadsStore {
 
     private func loadStarterWavs() {
         for pad in pads {
-            if let url = Bundle.main.url(forResource: pad.sampleFile, withExtension: nil) {
+            if let url = findResourceURL(for: pad.sampleFile) {
                 if let pcm = loadWavFloatBuffer(from: url) {
                     audioEngine.loadSample(padIndex: pad.index, data: pcm)
                 }
             }
         }
+    }
+
+    private func findResourceURL(for path: String) -> URL? {
+        if let url = Bundle.main.url(forResource: path, withExtension: nil) {
+            return url
+        }
+        let filename = (path as NSString).lastPathComponent
+        if let url = Bundle.main.url(forResource: filename, withExtension: nil) {
+            return url
+        }
+        #if SWIFT_PACKAGE
+        if let url = Bundle.module.url(forResource: path, withExtension: nil) {
+            return url
+        }
+        if let url = Bundle.module.url(forResource: filename, withExtension: nil) {
+            return url
+        }
+        #endif
+        return nil
     }
 
     private func loadWavFloatBuffer(from url: URL) -> [Float]? {
