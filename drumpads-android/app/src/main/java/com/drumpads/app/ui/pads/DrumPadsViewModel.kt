@@ -36,6 +36,8 @@ class DrumPadsViewModel @Inject constructor(
 
     init {
         audioEngine.init()
+        // Wire SoundPool with Context so real WAV playback works on device
+        audioEngine.initWithContext(context)
         audioEngine.start()
         loadStarterSamples()
     }
@@ -44,6 +46,9 @@ class DrumPadsViewModel @Inject constructor(
         viewModelScope.launch(Dispatchers.IO) {
             val pads = padRepository.getPads()
             for (pad in pads) {
+                // Load into SoundPool (real device playback)
+                audioEngine.loadAssetSample(pad.index, pad.samplePath)
+                // Also load PCM into synth voice pool (unit test fallback)
                 try {
                     context.assets.open(pad.samplePath).use { stream ->
                         val pcm = parseWavPcm(stream)
@@ -52,8 +57,29 @@ class DrumPadsViewModel @Inject constructor(
                         }
                     }
                 } catch (_: Throwable) {
-                    // AudioEngine synthesized fallback handles this automatically
+                    // Synth fallback already has generated samples for this pad
                 }
+            }
+
+            // Quick FX dedicated sounds (Horn, Elephant, Reload, Scratch, Vinyl, Watch)
+            val quickFxFiles = listOf(
+                24 to "starter/samples/fx_horn.wav",
+                25 to "starter/samples/fx_elephant.wav",
+                26 to "starter/samples/fx_reload.wav",
+                27 to "starter/samples/fx_scratch.wav",
+                28 to "starter/samples/fx_vinyl.wav",
+                29 to "starter/samples/fx_watch.wav"
+            )
+            for ((idx, path) in quickFxFiles) {
+                audioEngine.loadAssetSample(idx, path)
+                try {
+                    context.assets.open(path).use { stream ->
+                        val pcm = parseWavPcm(stream)
+                        if (pcm != null && pcm.isNotEmpty()) {
+                            audioEngine.loadSample(idx, pcm)
+                        }
+                    }
+                } catch (_: Throwable) {}
             }
         }
     }
@@ -189,24 +215,38 @@ class DrumPadsViewModel @Inject constructor(
                 val bpm = _uiState.value.bpm
                 val stepMs = (60_000L / bpm) / 4
                 val active = _uiState.value.activeClips
-                if (active.contains(0) && (step % 8 == 0 || step % 8 == 6)) {
+                // Clip 0: Kick Punch (Syncopated 808 Kick pattern from video)
+                if (active.contains(0) && (step % 16 == 0 || step % 16 == 6 || step % 16 == 10 || step % 16 == 14)) {
                     audioEngine.triggerPad(0)
                 }
-                if (active.contains(1) && (step % 8 == 4)) {
+                // Clip 1: Snare / Clap on beat 3 (step 8 & step 24)
+                if (active.contains(1) && (step % 16 == 8)) {
                     audioEngine.triggerPad(2)
                 }
-                if (active.contains(2) && (step % 2 == 0)) {
+                // Clip 2: 16th Hi-Hat Groove with roll
+                if (active.contains(2) && (step % 2 == 0 || (step % 16 in 14..15))) {
                     audioEngine.triggerPad(4)
                 }
+                // Clip 3: Melodic Lead Hook
                 if (active.contains(3) && (step % 4 == 0)) {
                     val noteIndex = 12 + ((step / 4) % 6)
                     audioEngine.triggerPad(noteIndex)
                 }
-                if (active.contains(4) && (step % 8 == 2)) {
+                // Clip 4: 808 Sub Bass (Deep bassline following kick)
+                if (active.contains(4) && (step % 16 == 0 || step % 16 == 6 || step % 16 == 10)) {
                     audioEngine.triggerPad(6)
                 }
-                if (active.contains(5) && (step % 16 == 12)) {
+                // Clip 5: Percussion Tom & Open Hat
+                if (active.contains(5) && (step % 16 == 4 || step % 16 == 12)) {
                     audioEngine.triggerPad(18)
+                }
+                // Clip 6: Vocal Chant ("Hey!" accent)
+                if (active.contains(6) && (step % 32 == 28)) {
+                    audioEngine.triggerPad(22)
+                }
+                // Clip 7: Crash & Impact on downbeat
+                if (active.contains(7) && (step % 32 == 0)) {
+                    audioEngine.triggerPad(20)
                 }
 
                 delay(stepMs)
@@ -219,16 +259,16 @@ class DrumPadsViewModel @Inject constructor(
         if (_uiState.value.isHapticEnabled) {
             hapticManager.playPadHaptic()
         }
-        val padIndex = when (fxName.lowercase()) {
-            "horn" -> 20
-            "elphnt" -> 21
-            "reload" -> 19
-            "scrtch" -> 22
-            "vinyl" -> 23
-            "watch" -> 4
-            else -> 0
+        val fxIndex = when (fxName.lowercase()) {
+            "horn" -> 24
+            "elphnt" -> 25
+            "reload" -> 26
+            "scrtch" -> 27
+            "vinyl" -> 28
+            "watch" -> 29
+            else -> 24
         }
-        audioEngine.triggerPad(padIndex)
+        audioEngine.triggerPad(fxIndex)
         _uiState.update { it.copy(activeQuickFx = fxName) }
         viewModelScope.launch {
             delay(250)

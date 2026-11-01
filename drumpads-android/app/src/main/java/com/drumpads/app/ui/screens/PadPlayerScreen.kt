@@ -580,23 +580,27 @@ private fun GlowingPadsGridView(
     val isSceneB = uiState.selectedBank == PadBank.BANK_B
     val startIndex = if (isSceneB) 12 else 0
 
-    // Exact color mappings from Video 1 & Video 2
+    // Exact color mappings matching Drum Pads 24 store listing & app UI
     val padColors = remember(isSceneB) {
         if (!isSceneB) {
-            // Scene A: Rows = Amber/Gold, Vivid Orange, Olive/Lime, Electric Blue
+            // Scene A: Signature Drum Pads 24 Kit
+            // Row 0: 3 Lime Green pads
+            // Row 1: 1 Lime Green, 1 Vivid Orange, 1 Neon Magenta/Purple
+            // Row 2: 3 Vivid Orange pads (center pad turns radiant white when tapped)
+            // Row 3: 3 Electric Sky Blue / Cyan pads
             listOf(
-                Color(0xFFD4AC0D), Color(0xFFD4AC0D), Color(0xFFD4AC0D), // Row 0
-                Color(0xFFE67E22), Color(0xFFE67E22), Color(0xFFE67E22), // Row 1
-                Color(0xFF8D9920), Color(0xFF8D9920), Color(0xFF8D9920), // Row 2
-                Color(0xFF138496), Color(0xFF138496), Color(0xFF138496)  // Row 3
+                Color(0xFF38E54D), Color(0xFF38E54D), Color(0xFF38E54D), // Row 0
+                Color(0xFF38E54D), Color(0xFFFF7A00), Color(0xFFE040FB), // Row 1
+                Color(0xFFFF7A00), Color(0xFFFF7A00), Color(0xFFFF7A00), // Row 2
+                Color(0xFF00B0FF), Color(0xFF00B0FF), Color(0xFF00B0FF)  // Row 3
             )
         } else {
-            // Scene B: Lime Green, Lime/Orange/Purple mix, Amber, Cyan
+            // Scene B: Alternative Electronic Kit
             listOf(
-                Color(0xFF5CB811), Color(0xFF5CB811), Color(0xFF5CB811), // Row 0
-                Color(0xFF76BA1B), Color(0xFFE67E22), Color(0xFF8E44AD), // Row 1
-                Color(0xFFE67E22), Color(0xFFE67E22), Color(0xFFE67E22), // Row 2
-                Color(0xFF00A8CC), Color(0xFF00A8CC), Color(0xFF007BFF)  // Row 3
+                Color(0xFFFF2E93), Color(0xFFFF2E93), Color(0xFFFF2E93), // Row 0: Hot Pink
+                Color(0xFF9D00FF), Color(0xFF9D00FF), Color(0xFF9D00FF), // Row 1: Electric Violet
+                Color(0xFFFFD600), Color(0xFFFFD600), Color(0xFFFFD600), // Row 2: Neon Amber
+                Color(0xFF00F5D4), Color(0xFF00F5D4), Color(0xFF00F5D4)  // Row 3: Neon Aqua
             )
         }
     }
@@ -651,24 +655,32 @@ private fun PadCell(
         label = "scale"
     )
 
-    // Radial gradient: resting has center glow; pressed has blazing white flare (Light Show)
+    // Authentic hardware pad surface: solid, rich, vivid neon colors (no murky translucency)
+    // When pressed, turns pure brilliant solid white just like in the Drum Pads 24 screenshots
     val backgroundBrush = remember(isPressed, baseColor, isLightShowEnabled) {
-        if (isPressed && isLightShowEnabled) {
-            Brush.radialGradient(
+        if (isPressed) {
+            Brush.verticalGradient(
                 colors = listOf(
-                    Color.White,
-                    Color(0xFFFFFFEE),
-                    baseColor.copy(alpha = 0.9f),
-                    baseColor
+                    Color(0xFFFFFFFF),
+                    Color(0xFFF8F9FA)
                 )
             )
         } else {
-            Brush.radialGradient(
+            Brush.verticalGradient(
                 colors = listOf(
-                    baseColor.copy(alpha = 0.85f),
-                    baseColor.copy(alpha = 0.70f),
-                    baseColor.copy(alpha = 0.50f),
-                    baseColor.copy(alpha = 0.35f)
+                    Color(
+                        red = (baseColor.red * 0.82f + 0.18f).coerceIn(0f, 1f),
+                        green = (baseColor.green * 0.82f + 0.18f).coerceIn(0f, 1f),
+                        blue = (baseColor.blue * 0.82f + 0.18f).coerceIn(0f, 1f),
+                        alpha = 1.0f
+                    ),
+                    baseColor,
+                    Color(
+                        red = (baseColor.red * 0.85f).coerceIn(0f, 1f),
+                        green = (baseColor.green * 0.85f).coerceIn(0f, 1f),
+                        blue = (baseColor.blue * 0.85f).coerceIn(0f, 1f),
+                        alpha = 1.0f
+                    )
                 )
             )
         }
@@ -680,8 +692,8 @@ private fun PadCell(
             .clip(RoundedCornerShape(14.dp))
             .background(backgroundBrush)
             .border(
-                width = if (isPressed) 2.dp else 1.dp,
-                color = if (isPressed) Color.White else baseColor.copy(alpha = 0.5f),
+                width = if (isPressed) 2.5.dp else 1.dp,
+                color = if (isPressed) Color.White else Color.White.copy(alpha = 0.22f),
                 shape = RoundedCornerShape(14.dp)
             )
             .pointerInput(Unit) {

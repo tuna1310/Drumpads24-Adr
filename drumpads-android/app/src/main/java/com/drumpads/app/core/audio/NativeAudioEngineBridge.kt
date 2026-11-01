@@ -1,5 +1,6 @@
 package com.drumpads.app.core.audio
 
+import android.content.Context
 import android.util.Log
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -27,6 +28,11 @@ class NativeAudioEngineBridge @Inject constructor() : AudioEngine {
         } else {
             jvmFallback.init()
         }
+    }
+
+    /** Pass Android Context to JVM fallback so SoundPool can be initialized. */
+    override fun initWithContext(context: Context) {
+        jvmFallback.initWithContext(context)
     }
 
     override fun start(): Boolean {
@@ -59,6 +65,11 @@ class NativeAudioEngineBridge @Inject constructor() : AudioEngine {
         } else {
             jvmFallback.loadSample(padIndex, pcmData)
         }
+    }
+
+    /** Delegate asset loading to JVM fallback's SoundPool. */
+    override fun loadAssetSample(padIndex: Int, assetPath: String) {
+        jvmFallback.loadAssetSample(padIndex, assetPath)
     }
 
     override fun setStressTest(enable: Boolean) {
