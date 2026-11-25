@@ -60,7 +60,7 @@ fun DrumPadsScreen(
                     IconButton(onClick = { viewModel.toggleSettings(true) }) {
                         Icon(
                             imageVector = Icons.Default.Settings,
-                            contentDescription = "Cài đặt",
+                            contentDescription = "Settings",
                             tint = TextPrimary
                         )
                     }

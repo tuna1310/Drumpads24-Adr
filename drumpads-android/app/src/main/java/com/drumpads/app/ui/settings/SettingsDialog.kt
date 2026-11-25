@@ -17,7 +17,7 @@ fun SettingsDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(text = "Cài đặt & Debug Audio") },
+        title = { Text(text = "Settings & Audio Debug") },
         text = {
             Column(
                 modifier = Modifier.fillMaxWidth(),
@@ -30,9 +30,9 @@ fun SettingsDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text(text = "Phản hồi rung (Haptic)", style = MaterialTheme.typography.bodyLarge)
+                        Text(text = "Haptic Feedback", style = MaterialTheme.typography.bodyLarge)
                         Text(
-                            text = "Rung nhẹ khi chạm pad",
+                            text = "Light vibration when tapping pads",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -52,15 +52,15 @@ fun SettingsDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(text = "Chế độ Stress Test (32 Voice)", style = MaterialTheme.typography.bodyLarge)
+                        Text(text = "Stress Test Mode (32 Voices)", style = MaterialTheme.typography.bodyLarge)
                         Text(
-                            text = "Phát liên tục 32 voice trong 60s để đo xrun",
+                            text = "Play 32 continuous voices for 60s to measure XRuns",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         if (uiState.isStressTestActive) {
                             Text(
-                                text = "Đang chạy: còn ${uiState.stressSecondsRemaining}s | XRuns: ${uiState.xrunCount}",
+                                text = "Running: remaining ${uiState.stressSecondsRemaining}s | XRuns: ${uiState.xrunCount}",
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.primary
                             )
@@ -75,7 +75,7 @@ fun SettingsDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Đóng")
+                Text("Close")
             }
         }
     )
