@@ -40,7 +40,7 @@ fun AccountScreen(
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 145.dp)
+            contentPadding = PaddingValues(bottom = 18.dp)
         ) {
             item {
                 Row(

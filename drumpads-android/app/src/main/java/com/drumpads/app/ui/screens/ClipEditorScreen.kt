@@ -56,6 +56,8 @@ fun ClipEditorScreen(
                     )
                 )
             )
+            .statusBarsPadding()
+            .navigationBarsPadding()
             .padding(16.dp)
     ) {
         Column(

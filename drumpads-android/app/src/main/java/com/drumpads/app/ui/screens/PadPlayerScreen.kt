@@ -61,6 +61,8 @@ fun PadPlayerScreen(
                     )
                 )
             )
+            .statusBarsPadding()
+            .navigationBarsPadding()
             .padding(horizontal = 10.dp, vertical = 6.dp)
     ) {
         Column(
@@ -555,33 +557,33 @@ private fun PadsToolbar(
         }
 
         // Scene A | B | 24 Switcher
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Row(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFF352562))
-                    .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
-            ) {
-                listOf(PadBank.BANK_A to "A", PadBank.BANK_B to "B", PadBank.FULL_24 to "24").forEach { (bank, label) ->
-                    val sel = selectedBank == bank
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(7.dp))
-                            .background(if (sel) Color.White else Color.Transparent)
-                            .clickable { onSceneSelect(bank) }
-                            .padding(horizontal = 8.dp, vertical = 4.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = label,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = if (sel) Color.Black else Color.White.copy(alpha = 0.65f)
-                        )
-                    }
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(10.dp))
+                .background(Color(0xFF352562))
+                .border(1.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(10.dp))
+                .padding(2.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            listOf(PadBank.BANK_A to "A", PadBank.BANK_B to "B", PadBank.FULL_24 to "24").forEach { (bank, label) ->
+                val sel = selectedBank == bank
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(if (sel) Color.White else Color.Transparent)
+                        .clickable { onSceneSelect(bank) }
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = label,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Black,
+                        color = if (sel) Color.Black else Color.White.copy(alpha = 0.72f)
+                    )
                 }
             }
-            Text(text = "Scene", fontSize = 10.sp, color = Color.White.copy(alpha = 0.75f))
         }
     }
 }
@@ -1040,7 +1042,18 @@ private fun FullAudioFxDrawer(
             }
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("10 REAL-TIME DSP FX", fontSize = 9.sp, fontWeight = FontWeight.Black, color = AccentCyan, letterSpacing = 0.8.sp)
+            Text("Swipe → for Delay, Dist, Gate, Wobble", fontSize = 9.sp, color = TextSecondary)
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
 
         // 10 Draggable Vertical DSP Faders
         Row(

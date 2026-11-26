@@ -82,7 +82,10 @@ fun PadEditorScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
+            .background(Color(0xFFFFB703))
+            .statusBarsPadding()
             .background(NavyBackground)
+            .navigationBarsPadding()
     ) {
         // Signature Yellow/Amber Header Bar matching Play Store "CREATE SOUND PACKS"
         Column(

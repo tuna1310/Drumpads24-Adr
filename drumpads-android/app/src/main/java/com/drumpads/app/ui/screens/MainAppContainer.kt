@@ -22,9 +22,7 @@ import com.drumpads.app.ui.components.MiniPlayerBar
 import com.drumpads.app.ui.pads.ActiveScreen
 import com.drumpads.app.ui.pads.DrumPadsViewModel
 import com.drumpads.app.ui.pads.NavTab
-import com.drumpads.app.ui.theme.AccentCyan
-import com.drumpads.app.ui.theme.NavyBackground
-import com.drumpads.app.ui.theme.NavyCardElevated
+import com.drumpads.app.ui.theme.*
 
 @Composable
 fun MainAppContainer(
@@ -53,20 +51,38 @@ fun MainAppContainer(
         ) { screen ->
             when (screen) {
                 ActiveScreen.MAIN -> {
-                    Box(modifier = Modifier.fillMaxSize().background(NavyBackground)) {
-                        when (uiState.selectedTab) {
-                            NavTab.SOUNDS -> SoundsScreen(uiState = uiState, viewModel = viewModel)
-                            NavTab.FEED -> FeedScreen(uiState = uiState, viewModel = viewModel)
-                            NavTab.MY -> MyStudioScreen(uiState = uiState, viewModel = viewModel)
-                            NavTab.ACCOUNT -> AccountScreen(uiState = uiState, viewModel = viewModel)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(NavyBackground)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .statusBarsPadding()
+                        ) {
+                            when (uiState.selectedTab) {
+                                NavTab.SOUNDS -> SoundsScreen(uiState = uiState, viewModel = viewModel)
+                                NavTab.FEED -> FeedScreen(uiState = uiState, viewModel = viewModel)
+                                NavTab.MY -> MyStudioScreen(uiState = uiState, viewModel = viewModel)
+                                NavTab.ACCOUNT -> AccountScreen(uiState = uiState, viewModel = viewModel)
+                            }
                         }
 
                         Column(
                             modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .fillMaxWidth(),
+                                .fillMaxWidth()
+                                .background(NavySurface)
+                                .navigationBarsPadding(),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(1.dp)
+                                    .background(NavyBorder.copy(alpha = 0.7f))
+                            )
                             if (uiState.miniPlayerTrack != null) {
                                 MiniPlayerBar(
                                     trackTitle = uiState.miniPlayerTrack!!,

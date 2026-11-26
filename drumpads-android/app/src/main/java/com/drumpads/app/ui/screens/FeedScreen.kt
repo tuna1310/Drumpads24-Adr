@@ -58,7 +58,7 @@ fun FeedScreen(
         modifier = modifier
             .fillMaxSize()
             .background(NavyBackground),
-        contentPadding = PaddingValues(bottom = 145.dp)
+        contentPadding = PaddingValues(bottom = 18.dp)
     ) {
         // 1. Header
         item {
@@ -167,14 +167,16 @@ fun FeedScreen(
                     Spacer(modifier = Modifier.width(10.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            Text(post.authorName, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                            Text(post.authorName, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary, maxLines = 1)
                             if (post.isCrewTutorial) {
                                 Text(
-                                    "CREW TIP",
+                                    text = "CREW",
                                     fontSize = 9.sp,
                                     fontWeight = FontWeight.Black,
                                     color = Color.Black,
-                                    modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(AccentCyan).padding(horizontal = 5.dp, vertical = 1.dp)
+                                    softWrap = false,
+                                    maxLines = 1,
+                                    modifier = Modifier.clip(RoundedCornerShape(5.dp)).background(AccentCyan).padding(horizontal = 6.dp, vertical = 2.dp)
                                 )
                             }
                         }

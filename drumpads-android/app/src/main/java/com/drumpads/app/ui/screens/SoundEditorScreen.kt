@@ -77,7 +77,10 @@ fun SoundEditorScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
+            .background(Color(0xFFFFB703))
+            .statusBarsPadding()
             .background(Color(0xFF121218))
+            .navigationBarsPadding()
     ) {
         // Signature Yellow Header matching Play Store "EDIT SOUNDS"
         Row(

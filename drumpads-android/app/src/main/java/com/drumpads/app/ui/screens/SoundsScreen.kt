@@ -64,14 +64,14 @@ fun SoundsScreen(
     Box(modifier = modifier.fillMaxSize().background(NavyBackground)) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 145.dp)
+            contentPadding = PaddingValues(bottom = 20.dp)
         ) {
-            // 1. Top Header
+            // 1. Top Header with + Create Sound Pack pill (unobstructed!)
             item {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -80,19 +80,32 @@ fun SoundsScreen(
                         Text("${uiState.allSoundPacks.size} Sound Packs • 12 Genres", fontSize = 11.sp, color = TextSecondary)
                     }
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(Color(0xFFFFB703))
+                                .clickable { viewModel.navigateTo(ActiveScreen.PROJECT_EDITOR) }
+                                .padding(horizontal = 11.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = "Create Pack", tint = Color.Black, modifier = Modifier.size(16.dp))
+                            Text("Create", fontSize = 12.sp, fontWeight = FontWeight.Black, color = Color.Black)
+                        }
+
                         IconButton(
                             onClick = { viewModel.openRandomPack() },
-                            modifier = Modifier.size(38.dp).clip(CircleShape).background(NavyCard)
+                            modifier = Modifier.size(36.dp).clip(CircleShape).background(NavyCard)
                         ) {
-                            Icon(Icons.Default.Casino, contentDescription = "Random Pack", tint = AccentYellow, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.Casino, contentDescription = "Random Pack", tint = AccentYellow, modifier = Modifier.size(18.dp))
                         }
 
                         IconButton(
                             onClick = { showSearchBar = !showSearchBar },
-                            modifier = Modifier.size(38.dp).clip(CircleShape).background(if (showSearchBar) AccentCyan else NavyCard)
+                            modifier = Modifier.size(36.dp).clip(CircleShape).background(if (showSearchBar) AccentCyan else NavyCard)
                         ) {
-                            Icon(Icons.Default.Search, contentDescription = "Search", tint = if (showSearchBar) Color.Black else TextPrimary, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.Search, contentDescription = "Search", tint = if (showSearchBar) Color.Black else TextPrimary, modifier = Modifier.size(18.dp))
                         }
                     }
                 }
@@ -135,25 +148,50 @@ fun SoundsScreen(
                     ) {
                         items(featuredStories) { pack ->
                             val gradient = listOf(Color(pack.gradientStart), Color(pack.gradientEnd))
+                            val isPreviewing = uiState.previewingPackId == pack.id
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
-                                modifier = Modifier.clickable { viewModel.openSoundPack(pack) }
+                                modifier = Modifier.width(74.dp).clickable { viewModel.openSoundPack(pack) }
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(64.dp)
-                                        .clip(CircleShape)
-                                        .border(2.dp, Brush.linearGradient(gradient), CircleShape)
-                                        .padding(3.dp)
-                                        .clip(CircleShape)
-                                        .background(Brush.radialGradient(gradient)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(pack.title.take(2).uppercase(), fontSize = 16.sp, fontWeight = FontWeight.Black, color = Color.White)
+                                Box(modifier = Modifier.size(64.dp)) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(CircleShape)
+                                            .border(2.dp, Brush.linearGradient(gradient), CircleShape)
+                                            .padding(3.dp)
+                                            .clip(CircleShape)
+                                            .background(Brush.radialGradient(gradient)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.MusicNote,
+                                            contentDescription = pack.title,
+                                            tint = Color.White,
+                                            modifier = Modifier.size(26.dp)
+                                        )
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.BottomEnd)
+                                            .size(22.dp)
+                                            .clip(CircleShape)
+                                            .background(if (isPreviewing) AccentYellow else NavyBackground)
+                                            .border(1.dp, AccentCyan, CircleShape)
+                                            .clickable { viewModel.togglePreviewPack(pack) },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isPreviewing) Icons.Default.Stop else Icons.Default.PlayArrow,
+                                            contentDescription = "Preview Story",
+                                            tint = if (isPreviewing) Color.Black else AccentCyan,
+                                            modifier = Modifier.size(13.dp)
+                                        )
+                                    }
                                 }
                                 Spacer(modifier = Modifier.height(5.dp))
-                                Text(pack.title, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary, maxLines = 1)
-                                Text(pack.genre.label, fontSize = 9.sp, color = TextSecondary, maxLines = 1)
+                                Text(pack.title, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(pack.genre.label, fontSize = 9.sp, color = TextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             }
                         }
                     }
@@ -186,14 +224,15 @@ fun SoundsScreen(
                             uiState.allSoundPacks.firstOrNull { it.id == id }
                         }.ifEmpty { uiState.allSoundPacks.take(4) }
                         items(recentPacks) { pack ->
-                            Box(modifier = Modifier.width(300.dp)) {
+                            Box(modifier = Modifier.width(320.dp)) {
                                 SoundPackRowCard(
                                     pack = pack,
                                     isPreviewing = uiState.previewingPackId == pack.id,
                                     isFavorite = uiState.favoritePackIds.contains(pack.id),
                                     onOpen = { viewModel.openSoundPack(pack) },
                                     onPreview = { viewModel.togglePreviewPack(pack) },
-                                    onToggleFavorite = { viewModel.toggleFavoritePack(pack.id) }
+                                    onToggleFavorite = { viewModel.toggleFavoritePack(pack.id) },
+                                    horizontalMargin = false
                                 )
                             }
                         }
@@ -338,20 +377,6 @@ fun SoundsScreen(
                 Spacer(modifier = Modifier.height(10.dp))
             }
         }
-
-        // Floating Action Button (+) to Create Custom Sound Pack (matching Play Store "EXPLORE SOUNDS" screenshot!)
-        FloatingActionButton(
-            onClick = { viewModel.navigateTo(ActiveScreen.PROJECT_EDITOR) },
-            containerColor = Color(0xFFFFB703),
-            contentColor = Color.Black,
-            shape = CircleShape,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 18.dp, bottom = 148.dp)
-                .size(54.dp)
-        ) {
-            Icon(Icons.Default.Add, contentDescription = "Create Sound Pack", modifier = Modifier.size(28.dp))
-        }
     }
 }
 
@@ -362,12 +387,13 @@ fun SoundPackRowCard(
     isFavorite: Boolean,
     onOpen: () -> Unit,
     onPreview: () -> Unit,
-    onToggleFavorite: () -> Unit
+    onToggleFavorite: () -> Unit,
+    horizontalMargin: Boolean = true
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
+            .then(if (horizontalMargin) Modifier.padding(horizontal = 16.dp) else Modifier)
             .clip(RoundedCornerShape(16.dp))
             .background(NavyCard)
             .border(1.dp, if (isPreviewing) AccentCyan else NavyBorder, RoundedCornerShape(16.dp))

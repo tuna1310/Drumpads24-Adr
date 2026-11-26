@@ -90,7 +90,7 @@ fun MyStudioScreen(
         modifier = modifier
             .fillMaxSize()
             .background(NavyBackground),
-        contentPadding = PaddingValues(bottom = 145.dp)
+        contentPadding = PaddingValues(bottom = 18.dp)
     ) {
         item {
             Box(

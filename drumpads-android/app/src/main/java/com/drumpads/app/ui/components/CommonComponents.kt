@@ -32,10 +32,10 @@ fun AppBottomNavBar(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp)
-            .clip(RoundedCornerShape(32.dp))
-            .background(NavySurface.copy(alpha = 0.95f))
-            .border(1.dp, NavyBorder, RoundedCornerShape(32.dp))
+            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .background(NavyCard)
+            .border(1.dp, NavyBorder, RoundedCornerShape(24.dp))
             .padding(vertical = 4.dp, horizontal = 8.dp)
     ) {
         Row(
