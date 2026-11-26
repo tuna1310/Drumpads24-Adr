@@ -81,29 +81,37 @@ fun SoundsScreen(
                     }
 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Row(
+                        Box(
                             modifier = Modifier
-                                .clip(RoundedCornerShape(18.dp))
+                                .size(36.dp)
+                                .clip(CircleShape)
                                 .background(Color(0xFFFFB703))
-                                .clickable { viewModel.navigateTo(ActiveScreen.PROJECT_EDITOR) }
-                                .padding(horizontal = 11.dp, vertical = 8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                .clickable { viewModel.navigateTo(ActiveScreen.PROJECT_EDITOR) },
+                            contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Default.Add, contentDescription = "Create Pack", tint = Color.Black, modifier = Modifier.size(16.dp))
-                            Text("Create", fontSize = 12.sp, fontWeight = FontWeight.Black, color = Color.Black)
+                            Icon(Icons.Default.Add, contentDescription = "Create Pack", tint = Color.Black, modifier = Modifier.size(20.dp))
                         }
 
-                        IconButton(
-                            onClick = { viewModel.openRandomPack() },
-                            modifier = Modifier.size(36.dp).clip(CircleShape).background(NavyCard)
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(NavyCard)
+                                .border(1.dp, NavyBorder, CircleShape)
+                                .clickable { viewModel.openRandomPack() },
+                            contentAlignment = Alignment.Center
                         ) {
                             Icon(Icons.Default.Casino, contentDescription = "Random Pack", tint = AccentYellow, modifier = Modifier.size(18.dp))
                         }
 
-                        IconButton(
-                            onClick = { showSearchBar = !showSearchBar },
-                            modifier = Modifier.size(36.dp).clip(CircleShape).background(if (showSearchBar) AccentCyan else NavyCard)
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(if (showSearchBar) AccentCyan else NavyCard)
+                                .border(1.dp, NavyBorder, CircleShape)
+                                .clickable { showSearchBar = !showSearchBar },
+                            contentAlignment = Alignment.Center
                         ) {
                             Icon(Icons.Default.Search, contentDescription = "Search", tint = if (showSearchBar) Color.Black else TextPrimary, modifier = Modifier.size(18.dp))
                         }
@@ -216,7 +224,9 @@ fun SoundsScreen(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     LazyRow(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(84.dp),
                         contentPadding = PaddingValues(horizontal = 16.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
@@ -224,7 +234,7 @@ fun SoundsScreen(
                             uiState.allSoundPacks.firstOrNull { it.id == id }
                         }.ifEmpty { uiState.allSoundPacks.take(4) }
                         items(recentPacks) { pack ->
-                            Box(modifier = Modifier.width(320.dp)) {
+                            Box(modifier = Modifier.width(310.dp).fillMaxHeight()) {
                                 SoundPackRowCard(
                                     pack = pack,
                                     isPreviewing = uiState.previewingPackId == pack.id,
@@ -237,7 +247,7 @@ fun SoundsScreen(
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(18.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
                 }
 
                 // 4. New Releases Horizontal Carousel
@@ -394,11 +404,12 @@ fun SoundPackRowCard(
         modifier = Modifier
             .fillMaxWidth()
             .then(if (horizontalMargin) Modifier.padding(horizontal = 16.dp) else Modifier)
+            .height(80.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(NavyCard)
             .border(1.dp, if (isPreviewing) AccentCyan else NavyBorder, RoundedCornerShape(16.dp))
             .clickable { onOpen() }
-            .padding(12.dp),
+            .padding(horizontal = 12.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(

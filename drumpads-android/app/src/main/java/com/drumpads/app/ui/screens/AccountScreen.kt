@@ -49,18 +49,28 @@ fun AccountScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(uiState.userName, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        IconButton(
-                            onClick = { viewModel.navigateTo(ActiveScreen.EDIT_PROFILE) },
-                            modifier = Modifier.size(38.dp).clip(CircleShape).background(NavyCard)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(NavyCard)
+                                .border(1.dp, NavyBorder, CircleShape)
+                                .clickable { viewModel.navigateTo(ActiveScreen.EDIT_PROFILE) },
+                            contentAlignment = Alignment.Center
                         ) {
                             Icon(Icons.Default.Edit, contentDescription = "Edit Profile", tint = TextPrimary, modifier = Modifier.size(18.dp))
                         }
-                        IconButton(
-                            onClick = { viewModel.navigateTo(ActiveScreen.SETTINGS) },
-                            modifier = Modifier.size(38.dp).clip(CircleShape).background(NavyCard)
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(NavyCard)
+                                .border(1.dp, NavyBorder, CircleShape)
+                                .clickable { viewModel.navigateTo(ActiveScreen.SETTINGS) },
+                            contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Default.Settings, contentDescription = "Settings", tint = TextPrimary, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.Settings, contentDescription = "Settings", tint = TextPrimary, modifier = Modifier.size(19.dp))
                         }
                     }
                 }

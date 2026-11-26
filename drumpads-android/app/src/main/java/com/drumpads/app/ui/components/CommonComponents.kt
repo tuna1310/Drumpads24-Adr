@@ -29,45 +29,38 @@ fun AppBottomNavBar(
     onTabSelected: (NavTab) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Box(
+    Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp)
-            .clip(RoundedCornerShape(24.dp))
-            .background(NavyCard)
-            .border(1.dp, NavyBorder, RoundedCornerShape(24.dp))
-            .padding(vertical = 4.dp, horizontal = 8.dp)
+            .background(NavySurface)
+            .padding(horizontal = 8.dp, vertical = 6.dp),
+        horizontalArrangement = Arrangement.SpaceAround,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            NavItem(
-                label = "Sounds",
-                icon = Icons.Default.PlayArrow,
-                isSelected = selectedTab == NavTab.SOUNDS,
-                onClick = { onTabSelected(NavTab.SOUNDS) }
-            )
-            NavItem(
-                label = "Feed",
-                icon = Icons.Default.List,
-                isSelected = selectedTab == NavTab.FEED,
-                onClick = { onTabSelected(NavTab.FEED) }
-            )
-            NavItem(
-                label = "My",
-                icon = Icons.Default.Favorite,
-                isSelected = selectedTab == NavTab.MY,
-                onClick = { onTabSelected(NavTab.MY) }
-            )
-            NavItem(
-                label = "Account",
-                icon = Icons.Default.Person,
-                isSelected = selectedTab == NavTab.ACCOUNT,
-                onClick = { onTabSelected(NavTab.ACCOUNT) }
-            )
-        }
+        NavItem(
+            label = "Sounds",
+            icon = Icons.Default.PlayArrow,
+            isSelected = selectedTab == NavTab.SOUNDS,
+            onClick = { onTabSelected(NavTab.SOUNDS) }
+        )
+        NavItem(
+            label = "Feed",
+            icon = Icons.Default.List,
+            isSelected = selectedTab == NavTab.FEED,
+            onClick = { onTabSelected(NavTab.FEED) }
+        )
+        NavItem(
+            label = "My",
+            icon = Icons.Default.Favorite,
+            isSelected = selectedTab == NavTab.MY,
+            onClick = { onTabSelected(NavTab.MY) }
+        )
+        NavItem(
+            label = "Account",
+            icon = Icons.Default.Person,
+            isSelected = selectedTab == NavTab.ACCOUNT,
+            onClick = { onTabSelected(NavTab.ACCOUNT) }
+        )
     }
 }
 
@@ -117,11 +110,8 @@ fun MiniPlayerBar(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
-            .clip(RoundedCornerShape(16.dp))
-            .background(NavySurface.copy(alpha = 0.94f))
-            .border(1.dp, NavyBorder.copy(alpha = 0.7f), RoundedCornerShape(16.dp))
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .background(NavyCard.copy(alpha = 0.7f))
+            .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(

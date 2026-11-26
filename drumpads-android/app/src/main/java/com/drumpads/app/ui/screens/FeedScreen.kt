@@ -72,18 +72,28 @@ fun FeedScreen(
                     Text("Beat Maker Crew • Community Sessions", fontSize = 11.sp, color = TextSecondary)
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    IconButton(
-                        onClick = { viewModel.navigateTo(ActiveScreen.RECORDINGS) },
-                        modifier = Modifier.size(38.dp).clip(CircleShape).background(NavyCard)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(NavyCard)
+                            .border(1.dp, NavyBorder, CircleShape)
+                            .clickable { viewModel.navigateTo(ActiveScreen.RECORDINGS) },
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = "Post Beat", tint = AccentYellow, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.Add, contentDescription = "Post Beat", tint = AccentYellow, modifier = Modifier.size(19.dp))
                     }
-                    IconButton(
-                        onClick = { viewModel.selectTab(com.drumpads.app.ui.pads.NavTab.SOUNDS) },
-                        modifier = Modifier.size(38.dp).clip(CircleShape).background(NavyCard)
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(NavyCard)
+                            .border(1.dp, NavyBorder, CircleShape)
+                            .clickable { viewModel.selectTab(com.drumpads.app.ui.pads.NavTab.SOUNDS) },
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Search, contentDescription = "Explore", tint = TextPrimary, modifier = Modifier.size(20.dp))
+                        Icon(Icons.Default.Search, contentDescription = "Explore", tint = TextPrimary, modifier = Modifier.size(19.dp))
                     }
                 }
             }

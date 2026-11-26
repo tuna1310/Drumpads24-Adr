@@ -279,80 +279,111 @@ private fun TopNavigationBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 2.dp),
+            .padding(horizontal = 2.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        IconButton(onClick = onBackClick, modifier = Modifier.size(34.dp)) {
-            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Back", tint = Color.White, modifier = Modifier.size(26.dp))
-        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF281C48))
+                    .border(1.dp, Color.White.copy(alpha = 0.12f), CircleShape)
+                    .clickable { onBackClick() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Back", tint = Color.White, modifier = Modifier.size(22.dp))
+            }
 
-        // Pad Editor Button (3x3 Grid icon matching Google Play Store reference!)
-        IconButton(onClick = onEditorClick, modifier = Modifier.size(34.dp)) {
-            Icon(Icons.Default.GridView, contentDescription = "Pad Editor", tint = AccentYellow, modifier = Modifier.size(22.dp))
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF281C48))
+                    .border(1.dp, Color.White.copy(alpha = 0.12f), CircleShape)
+                    .clickable { onEditorClick() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.GridView, contentDescription = "Pad Editor", tint = AccentYellow, modifier = Modifier.size(18.dp))
+            }
         }
 
         // Segmented Toggle: [Clips] [Pads]
         Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(20.dp))
-                .background(Color(0xFF281C48).copy(alpha = 0.85f))
-                .border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(20.dp))
-                .padding(3.dp)
+                .height(36.dp)
+                .clip(RoundedCornerShape(18.dp))
+                .background(Color(0xFF281C48))
+                .border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(18.dp))
+                .padding(3.dp),
+            contentAlignment = Alignment.Center
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(16.dp))
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(15.dp))
                         .background(if (isClipsMode) Color.White else Color.Transparent)
                         .clickable { onModeChange(true) }
-                        .padding(horizontal = 14.dp, vertical = 5.dp),
+                        .padding(horizontal = 16.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "Clips",
-                        fontSize = 13.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (isClipsMode) Color.Black else Color.White.copy(alpha = 0.7f)
+                        color = if (isClipsMode) Color.Black else Color.White.copy(alpha = 0.72f)
                     )
                 }
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(16.dp))
+                        .fillMaxHeight()
+                        .clip(RoundedCornerShape(15.dp))
                         .background(if (!isClipsMode) Color.White else Color.Transparent)
                         .clickable { onModeChange(false) }
-                        .padding(horizontal = 14.dp, vertical = 5.dp),
+                        .padding(horizontal = 16.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
                         text = "Pads",
-                        fontSize = 13.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = if (!isClipsMode) Color.Black else Color.White.copy(alpha = 0.7f)
+                        color = if (!isClipsMode) Color.Black else Color.White.copy(alpha = 0.72f)
                     )
                 }
             }
         }
 
-        // Lock Toggle
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(16.dp))
-                .background(if (isPadLocked) Color(0xFF6C3CE9) else Color(0xFF322359))
-                .clickable { onLockToggle() }
-                .padding(horizontal = 9.dp, vertical = 6.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = if (isPadLocked) Icons.Default.Lock else Icons.Default.LockOpen,
-                contentDescription = "Lock",
-                tint = if (isPadLocked) Color.White else Color.White.copy(alpha = 0.45f),
-                modifier = Modifier.size(16.dp)
-            )
-        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(if (isPadLocked) Color(0xFF6C3CE9) else Color(0xFF281C48))
+                    .border(1.dp, Color.White.copy(alpha = 0.12f), CircleShape)
+                    .clickable { onLockToggle() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isPadLocked) Icons.Default.Lock else Icons.Default.LockOpen,
+                    contentDescription = "Lock",
+                    tint = if (isPadLocked) Color.White else Color.White.copy(alpha = 0.72f),
+                    modifier = Modifier.size(16.dp)
+                )
+            }
 
-        IconButton(onClick = onSettingsClick, modifier = Modifier.size(34.dp)) {
-            Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.size(22.dp))
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .background(Color(0xFF281C48))
+                    .border(1.dp, Color.White.copy(alpha = 0.12f), CircleShape)
+                    .clickable { onSettingsClick() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.size(18.dp))
+            }
         }
     }
 }
@@ -471,94 +502,113 @@ private fun PadsToolbar(
     onHoldToggle: () -> Unit,
     onSceneSelect: (PadBank) -> Unit
 ) {
+    // Laser-aligned 36.dp uniform-height control strip
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 4.dp, vertical = 2.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
+            .padding(horizontal = 2.dp, vertical = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Sound FX Drawer Toggle
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.clickable { onSoundFxClick() }
+        // 1. Sound FX Capsule
+        Row(
+            modifier = Modifier
+                .height(34.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(if (isSoundFxOpen) AccentCyan else Color(0xFF281C48))
+                .border(1.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(10.dp))
+                .clickable { onSoundFxClick() }
+                .padding(horizontal = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Icon(
                 imageVector = Icons.Default.Tune,
                 contentDescription = "Sound FX",
-                tint = if (isSoundFxOpen) AccentCyan else Color.White.copy(alpha = 0.9f),
-                modifier = Modifier.size(22.dp)
+                tint = if (isSoundFxOpen) Color.Black else AccentCyan,
+                modifier = Modifier.size(15.dp)
             )
             Text(
-                text = "Sound FX",
-                fontSize = 10.sp,
-                fontWeight = if (isSoundFxOpen) FontWeight.Bold else FontWeight.Normal,
-                color = if (isSoundFxOpen) AccentCyan else Color.White.copy(alpha = 0.8f)
+                text = "FX",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Black,
+                color = if (isSoundFxOpen) Color.Black else Color.White
             )
         }
 
-        // Record Button + Free/Loop Mode Toggle
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.clickable { onRecordClick() }
+        // 2. Record + Free/Loop Unified Capsule
+        Row(
+            modifier = Modifier
+                .height(34.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(if (isRecording) DangerRed.copy(alpha = 0.22f) else Color(0xFF281C48))
+                .border(1.dp, if (isRecording) DangerRed else Color.White.copy(alpha = 0.16f), RoundedCornerShape(10.dp)),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .clickable { onRecordClick() }
+                    .padding(horizontal = 9.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(5.dp)
             ) {
                 Box(
                     modifier = Modifier
-                        .size(24.dp)
+                        .size(10.dp)
                         .clip(CircleShape)
-                        .border(2.dp, if (isRecording) DangerRed else Color.White, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (isRecording) {
-                        Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(DangerRed))
-                    }
-                }
+                        .background(if (isRecording) DangerRed else Color(0xFFFF4D6D))
+                )
                 Text(
-                    text = if (isRecording) String.format("%02d:%02d", recordingSeconds / 60, recordingSeconds % 60) else "Record",
-                    fontSize = 10.sp,
-                    fontWeight = if (isRecording) FontWeight.Bold else FontWeight.Normal,
-                    color = if (isRecording) DangerRed else Color.White.copy(alpha = 0.8f)
+                    text = if (isRecording) String.format("%02d:%02d", recordingSeconds / 60, recordingSeconds % 60) else "REC",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Black,
+                    color = if (isRecording) DangerRed else Color.White
                 )
             }
-
+            Box(modifier = Modifier.width(1.dp).fillMaxHeight().background(Color.White.copy(alpha = 0.14f)))
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(if (recordingMode == RecordingMode.LOOP) Color(0xFF6C3CE9) else Color(0xFF281C48))
-                    .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                    .fillMaxHeight()
+                    .background(if (recordingMode == RecordingMode.LOOP) Color(0xFF6C3CE9) else Color.Transparent)
                     .clickable { onToggleRecMode() }
-                    .padding(horizontal = 6.dp, vertical = 4.dp)
+                    .padding(horizontal = 8.dp),
+                contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = if (recordingMode == RecordingMode.LOOP) "LOOP" else "FREE",
-                    fontSize = 9.sp,
+                    fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
             }
         }
 
-        // HOLD Mode Toggle (from Google Play reference screenshot!)
+        // 3. HOLD Capsule
         Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(8.dp))
+                .height(34.dp)
+                .clip(RoundedCornerShape(10.dp))
                 .background(if (isHoldMode) AccentYellow else Color(0xFF281C48))
-                .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                .border(1.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(10.dp))
                 .clickable { onHoldToggle() }
-                .padding(horizontal = 8.dp, vertical = 5.dp)
+                .padding(horizontal = 10.dp),
+            contentAlignment = Alignment.Center
         ) {
             Text(
                 text = "HOLD",
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                color = if (isHoldMode) Color.Black else Color.White.copy(alpha = 0.8f)
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Black,
+                color = if (isHoldMode) Color.Black else Color.White.copy(alpha = 0.9f)
             )
         }
 
-        // Scene A | B | 24 Switcher
+        Spacer(modifier = Modifier.weight(1f))
+
+        // 4. Scene A | B | 24 Switcher
         Row(
             modifier = Modifier
+                .height(34.dp)
                 .clip(RoundedCornerShape(10.dp))
                 .background(Color(0xFF352562))
                 .border(1.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(10.dp))
@@ -570,10 +620,11 @@ private fun PadsToolbar(
                 val sel = selectedBank == bank
                 Box(
                     modifier = Modifier
+                        .fillMaxHeight()
                         .clip(RoundedCornerShape(8.dp))
                         .background(if (sel) Color.White else Color.Transparent)
                         .clickable { onSceneSelect(bank) }
-                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                        .padding(horizontal = 9.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -774,14 +825,12 @@ private fun PadCell(
                 text = pad.name,
                 fontSize = if (compact) 9.sp else 11.sp,
                 fontWeight = FontWeight.Bold,
-                color = if (isPressed) Color.Black else Color.White.copy(alpha = 0.92f),
+                color = if (isPressed) Color.Black else Color.White.copy(alpha = 0.94f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(if (isPressed) Color.Transparent else Color.Black.copy(alpha = 0.25f))
-                    .padding(horizontal = 4.dp, vertical = 1.dp)
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 2.dp)
             )
         }
     }
