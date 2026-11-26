@@ -1,17 +1,16 @@
 package com.drumpads.app.ui.screens
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,13 +26,21 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.drumpads.app.core.audio.DspEffectParams
+import com.drumpads.app.domain.model.ClipSlot
+import com.drumpads.app.domain.model.Pad
+import com.drumpads.app.domain.model.PadPlayMode
+import com.drumpads.app.domain.model.RecordingMode
 import com.drumpads.app.ui.pads.ActiveScreen
 import com.drumpads.app.ui.pads.DrumPadsUiState
 import com.drumpads.app.ui.pads.DrumPadsViewModel
 import com.drumpads.app.ui.pads.PadBank
+import com.drumpads.app.ui.pads.TutorialSessionState
 import com.drumpads.app.ui.theme.*
+import kotlin.math.roundToInt
 
 @Composable
 fun PadPlayerScreen(
@@ -47,14 +54,14 @@ fun PadPlayerScreen(
             .background(
                 Brush.verticalGradient(
                     listOf(
-                        Color(0xFF260D45), // Deep purple top tint matching video
+                        Color(0xFF260D45),
                         Color(0xFF140D2A),
                         Color(0xFF0C0E1B),
                         Color(0xFF070810)
                     )
                 )
             )
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .padding(horizontal = 10.dp, vertical = 6.dp)
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -62,39 +69,67 @@ fun PadPlayerScreen(
         ) {
             // TOP SECTION
             Column {
-                // 1. Top Bar: Back, Crown, [Clips|Pads], Lock, Settings
+                // 1. Top Navigation Bar: Back, Edit Pads, [Clips|Pads], Lock, Settings
                 TopNavigationBar(
+                    packName = uiState.selectedPackName,
                     isClipsMode = uiState.isClipsMode,
                     isPadLocked = uiState.isPadLocked,
                     onBackClick = { viewModel.navigateTo(ActiveScreen.MAIN) },
-                    onCrownClick = { viewModel.navigateTo(ActiveScreen.PAYWALL) },
+                    onEditorClick = { viewModel.openPadEditor(0) },
                     onModeChange = { isClips -> viewModel.setClipsMode(isClips) },
                     onLockToggle = { viewModel.setPadLocked(!uiState.isPadLocked) },
                     onSettingsClick = { viewModel.navigateTo(ActiveScreen.SETTINGS) }
                 )
 
-                Spacer(modifier = Modifier.height(10.dp))
+                // Active Tutorial Banner (Beat Maker Crew Lightshow Practice)
+                val tutorial = uiState.activeTutorial
+                if (tutorial != null) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    TutorialGuideBanner(
+                        tutorial = tutorial,
+                        onExit = { viewModel.exitTutorial() }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(6.dp))
 
                 // 2. Mode-Specific Sub-bar
                 if (uiState.isClipsMode) {
                     ClipsTransportBar(
                         bpm = uiState.bpm,
                         isRecording = uiState.isRecording,
+                        recordingSeconds = uiState.recordingDurationSeconds,
+                        recordingMode = uiState.recordingMode,
+                        isMetronomeOn = uiState.isMetronomeEnabled,
                         onStopClick = { viewModel.stopPlayback() },
                         onRecordClick = { viewModel.toggleRecording() },
-                        onBpmDecrease = { viewModel.adjustBpm(-5) },
-                        onBpmIncrease = { viewModel.adjustBpm(5) }
+                        onToggleRecMode = {
+                            val next = if (uiState.recordingMode == RecordingMode.FREE) RecordingMode.LOOP else RecordingMode.FREE
+                            viewModel.setRecordingMode(next)
+                        },
+                        onMetronomeClick = { viewModel.toggleMetronome() },
+                        onBpmDecrease = { viewModel.adjustBpm(-2) },
+                        onBpmIncrease = { viewModel.adjustBpm(2) }
                     )
                 } else {
                     PadsToolbar(
                         selectedBank = uiState.selectedBank,
                         isRecording = uiState.isRecording,
+                        recordingSeconds = uiState.recordingDurationSeconds,
+                        recordingMode = uiState.recordingMode,
+                        isSoundFxOpen = uiState.isSoundFxOpen,
+                        isHoldMode = uiState.isHoldMode,
                         onSoundFxClick = { viewModel.toggleSoundFxTray() },
                         onRecordClick = { viewModel.toggleRecording() },
+                        onToggleRecMode = {
+                            val next = if (uiState.recordingMode == RecordingMode.FREE) RecordingMode.LOOP else RecordingMode.FREE
+                            viewModel.setRecordingMode(next)
+                        },
+                        onHoldToggle = { viewModel.toggleHoldMode() },
                         onSceneSelect = { bank -> viewModel.selectBank(bank) }
                     )
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(6.dp))
 
                     // 6 Quick FX Buttons: [Horn] [Elphnt] [Reload] [Scrtch] [Vinyl] [Watch]
                     QuickFxBar(
@@ -109,14 +144,16 @@ fun PadPlayerScreen(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    .padding(vertical = 8.dp),
+                    .padding(vertical = 6.dp),
                 contentAlignment = Alignment.Center
             ) {
                 if (uiState.isClipsMode) {
                     ClipsMatrixView(
+                        clips = uiState.clips,
                         activeClips = uiState.activeClips,
                         selectedClipIndex = uiState.selectedClipIndex,
-                        bpm = uiState.bpm,
+                        currentStep = uiState.currentSequencerStep,
+                        isRecording = uiState.isRecording,
                         onClipClick = { index -> viewModel.toggleClip(index) }
                     )
                 } else {
@@ -127,63 +164,112 @@ fun PadPlayerScreen(
                 }
             }
 
-            // BOTTOM SECTION: Controls & Branding
+            // BOTTOM SECTION: Controls, Full DSP FX Tray & Branding
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 if (uiState.isClipsMode) {
-                    // Clip Action Bar: Edit, Duplicate, Delete
                     ClipActionBar(
-                        onEdit = { viewModel.openPadPlayer("Clip Editor") },
+                        onEdit = { viewModel.openClipEditor(uiState.selectedClipIndex) },
                         onDuplicate = { viewModel.duplicateSelectedClip() },
-                        onDelete = { viewModel.deleteSelectedClip() }
+                        onDelete = { viewModel.deleteSelectedClip() },
+                        onToggleFx = { viewModel.toggleSoundFxTray() },
+                        isFxOpen = uiState.isSoundFxOpen
                     )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Audio FX Faders (Volume, Echo 1/16, Echo 1/8, Reverb, Distortion)
-                    AudioFadersStrip(
-                        volume = uiState.volumeLevel,
-                        echo116 = uiState.echo116Level,
-                        echo18 = uiState.echo18Level,
-                        reverb = uiState.reverbLevel,
-                        distortion = uiState.distortionLevel,
-                        onFaderChange = { type, level -> viewModel.setFaderLevel(type, level) },
-                        onVipClick = { viewModel.navigateTo(ActiveScreen.PAYWALL) }
-                    )
+                    if (uiState.isSoundFxOpen) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        FullAudioFxDrawer(
+                            dsp = uiState.dspParams,
+                            peakLevel = uiState.livePeakLevel,
+                            onFaderChange = { type, level -> viewModel.setFaderLevel(type, level) },
+                            onFillClick = { viewModel.triggerFill() },
+                            onCleanClick = { viewModel.triggerClean() },
+                            onResetClick = { viewModel.resetAllFx() }
+                        )
+                    }
                 } else if (uiState.isSoundFxOpen) {
-                    // Drawer FX Faders when Sound FX is toggled
-                    AudioFadersStrip(
-                        volume = uiState.volumeLevel,
-                        echo116 = uiState.echo116Level,
-                        echo18 = uiState.echo18Level,
-                        reverb = uiState.reverbLevel,
-                        distortion = uiState.distortionLevel,
+                    FullAudioFxDrawer(
+                        dsp = uiState.dspParams,
+                        peakLevel = uiState.livePeakLevel,
                         onFaderChange = { type, level -> viewModel.setFaderLevel(type, level) },
-                        onVipClick = { viewModel.navigateTo(ActiveScreen.PAYWALL) }
+                        onFillClick = { viewModel.triggerFill() },
+                        onCleanClick = { viewModel.triggerClean() },
+                        onResetClick = { viewModel.resetAllFx() }
                     )
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Bottom Branding: Drum Pads 24
-                NeonAppBranding()
                 Spacer(modifier = Modifier.height(4.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "${uiState.selectedPackName} • ${uiState.activeGenre.label} • ${uiState.bpm} BPM",
+                        fontSize = 11.sp,
+                        color = Color.White.copy(alpha = 0.65f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                    NeonAppBranding()
+                }
+                Spacer(modifier = Modifier.height(2.dp))
             }
         }
     }
 }
 
-// -------------------------------------------------------------
-// 1. TOP NAVIGATION BAR
-// -------------------------------------------------------------
+@Composable
+private fun TutorialGuideBanner(
+    tutorial: TutorialSessionState,
+    onExit: () -> Unit
+) {
+    val currentLabel = tutorial.steps.getOrNull(tutorial.currentStepIndex)?.label ?: "Done!"
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0xFF1F2A56))
+            .border(1.dp, AccentCyan, RoundedCornerShape(12.dp))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Default.School, contentDescription = null, tint = AccentYellow, modifier = Modifier.size(20.dp))
+        Spacer(modifier = Modifier.width(8.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = if (tutorial.isCompleted) "Lesson Complete! (${tutorial.accuracyPercent}%)" else "Step ${tutorial.currentStepIndex + 1}/${tutorial.steps.size}: Tap $currentLabel",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            Text(
+                text = tutorial.title,
+                fontSize = 10.sp,
+                color = AccentCyan
+            )
+        }
+        Text(
+            text = "EXIT",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = AccentPink,
+            modifier = Modifier
+                .clickable { onExit() }
+                .padding(horizontal = 6.dp, vertical = 4.dp)
+        )
+    }
+}
+
 @Composable
 private fun TopNavigationBar(
+    packName: String,
     isClipsMode: Boolean,
     isPadLocked: Boolean,
     onBackClick: () -> Unit,
-    onCrownClick: () -> Unit,
+    onEditorClick: () -> Unit,
     onModeChange: (Boolean) -> Unit,
     onLockToggle: () -> Unit,
     onSettingsClick: () -> Unit
@@ -191,52 +277,34 @@ private fun TopNavigationBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .padding(vertical = 2.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Back Down Chevron
-        IconButton(
-            onClick = onBackClick,
-            modifier = Modifier.size(36.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.KeyboardArrowDown,
-                contentDescription = "Back",
-                tint = Color.White,
-                modifier = Modifier.size(28.dp)
-            )
+        IconButton(onClick = onBackClick, modifier = Modifier.size(34.dp)) {
+            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Back", tint = Color.White, modifier = Modifier.size(26.dp))
         }
 
-        // Crown VIP Icon
-        IconButton(
-            onClick = onCrownClick,
-            modifier = Modifier.size(36.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Star,
-                contentDescription = "VIP Pass",
-                tint = Color(0xFFFF2A85), // Vivid magenta/pink crown
-                modifier = Modifier.size(24.dp)
-            )
+        // Pad Editor Button (3x3 Grid icon matching Google Play Store reference!)
+        IconButton(onClick = onEditorClick, modifier = Modifier.size(34.dp)) {
+            Icon(Icons.Default.GridView, contentDescription = "Pad Editor", tint = AccentYellow, modifier = Modifier.size(22.dp))
         }
 
-        // Center Segmented Toggle: [Clips] [Pads] (Matching Video pill)
+        // Segmented Toggle: [Clips] [Pads]
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(20.dp))
                 .background(Color(0xFF281C48).copy(alpha = 0.85f))
-                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(20.dp))
+                .border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(20.dp))
                 .padding(3.dp)
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // Clips Pill
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(16.dp))
                         .background(if (isClipsMode) Color.White else Color.Transparent)
                         .clickable { onModeChange(true) }
-                        .padding(horizontal = 14.dp, vertical = 6.dp),
+                        .padding(horizontal = 14.dp, vertical = 5.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -246,14 +314,12 @@ private fun TopNavigationBar(
                         color = if (isClipsMode) Color.Black else Color.White.copy(alpha = 0.7f)
                     )
                 }
-
-                // Pads Pill
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(16.dp))
                         .background(if (!isClipsMode) Color.White else Color.Transparent)
                         .clickable { onModeChange(false) }
-                        .padding(horizontal = 14.dp, vertical = 6.dp),
+                        .padding(horizontal = 14.dp, vertical = 5.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
@@ -266,273 +332,266 @@ private fun TopNavigationBar(
             }
         }
 
-        // Lock Toggle Pill
+        // Lock Toggle
         Box(
             modifier = Modifier
                 .clip(RoundedCornerShape(16.dp))
                 .background(if (isPadLocked) Color(0xFF6C3CE9) else Color(0xFF322359))
                 .clickable { onLockToggle() }
-                .padding(horizontal = 10.dp, vertical = 6.dp),
+                .padding(horizontal = 9.dp, vertical = 6.dp),
             contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = Icons.Default.Lock,
+                imageVector = if (isPadLocked) Icons.Default.Lock else Icons.Default.LockOpen,
                 contentDescription = "Lock",
-                tint = if (isPadLocked) Color.White else Color.White.copy(alpha = 0.35f),
+                tint = if (isPadLocked) Color.White else Color.White.copy(alpha = 0.45f),
                 modifier = Modifier.size(16.dp)
             )
         }
 
-        // Gear Icon (Settings)
-        IconButton(
-            onClick = onSettingsClick,
-            modifier = Modifier.size(36.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Settings,
-                contentDescription = "Settings",
-                tint = Color.White.copy(alpha = 0.85f),
-                modifier = Modifier.size(22.dp)
-            )
+        IconButton(onClick = onSettingsClick, modifier = Modifier.size(34.dp)) {
+            Icon(Icons.Default.Settings, contentDescription = "Settings", tint = Color.White.copy(alpha = 0.85f), modifier = Modifier.size(22.dp))
         }
     }
 }
 
-// -------------------------------------------------------------
-// 2A. CLIPS TRANSPORT BAR (Stop, Record, BPM)
-// -------------------------------------------------------------
 @Composable
 private fun ClipsTransportBar(
     bpm: Int,
     isRecording: Boolean,
+    recordingSeconds: Int,
+    recordingMode: RecordingMode,
+    isMetronomeOn: Boolean,
     onStopClick: () -> Unit,
     onRecordClick: () -> Unit,
+    onToggleRecMode: () -> Unit,
+    onMetronomeClick: () -> Unit,
     onBpmDecrease: () -> Unit,
     onBpmIncrease: () -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 4.dp),
+            .padding(horizontal = 6.dp, vertical = 4.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Stop Button
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.clickable { onStopClick() }
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(22.dp)
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(Color.White)
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(text = "Stop", fontSize = 11.sp, color = Color.White.copy(alpha = 0.75f))
+        // Stop
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { onStopClick() }) {
+            Box(modifier = Modifier.size(20.dp).clip(RoundedCornerShape(4.dp)).background(Color.White))
+            Spacer(modifier = Modifier.height(3.dp))
+            Text(text = "Stop", fontSize = 10.sp, color = Color.White.copy(alpha = 0.8f))
         }
 
-        // Record Button
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.clickable { onRecordClick() }
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(24.dp)
-                    .clip(CircleShape)
-                    .border(2.dp, if (isRecording) DangerRed else Color.White, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                if (isRecording) {
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .clip(CircleShape)
-                            .background(DangerRed)
-                    )
+        // Record + Timer + Mode chip
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { onRecordClick() }) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .border(2.dp, if (isRecording) DangerRed else Color.White, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isRecording) {
+                        Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(DangerRed))
+                    }
                 }
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = if (isRecording) String.format("%02d:%02d", recordingSeconds / 60, recordingSeconds % 60) else "Record",
+                    fontSize = 10.sp,
+                    fontWeight = if (isRecording) FontWeight.Bold else FontWeight.Normal,
+                    color = if (isRecording) DangerRed else Color.White.copy(alpha = 0.8f)
+                )
             }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Record",
-                fontSize = 11.sp,
-                color = if (isRecording) DangerRed else Color.White.copy(alpha = 0.75f)
-            )
-        }
 
-        // BPM Capsule Control: [-] 120 BPM [+]
-        Row(
-            modifier = Modifier
-                .clip(RoundedCornerShape(20.dp))
-                .background(Color(0xFF2C1F52))
-                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(20.dp))
-                .padding(horizontal = 8.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "—",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
+            Box(
                 modifier = Modifier
-                    .clickable { onBpmDecrease() }
-                    .padding(horizontal = 8.dp)
-            )
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(horizontal = 8.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(if (recordingMode == RecordingMode.LOOP) Color(0xFF6C3CE9) else Color(0xFF281C48))
+                    .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                    .clickable { onToggleRecMode() }
+                    .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
                 Text(
-                    text = "$bpm",
-                    fontSize = 14.sp,
+                    text = if (recordingMode == RecordingMode.LOOP) "LOOP" else "FREE",
+                    fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color.White
                 )
-                Text(
-                    text = "BPM",
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color.White.copy(alpha = 0.6f)
-                )
             }
+        }
 
-            Text(
-                text = "+",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White,
-                modifier = Modifier
-                    .clickable { onBpmIncrease() }
-                    .padding(horizontal = 8.dp)
+        // Metronome
+        Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { onMetronomeClick() }) {
+            Icon(
+                Icons.Default.AvTimer,
+                contentDescription = "Metronome",
+                tint = if (isMetronomeOn) AccentCyan else Color.White.copy(alpha = 0.6f),
+                modifier = Modifier.size(20.dp)
             )
+            Text("Metro", fontSize = 10.sp, color = if (isMetronomeOn) AccentCyan else Color.White.copy(alpha = 0.7f))
+        }
+
+        // BPM Control
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(18.dp))
+                .background(Color(0xFF2C1F52))
+                .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(18.dp))
+                .padding(horizontal = 6.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("−", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White,
+                modifier = Modifier.clickable { onBpmDecrease() }.padding(horizontal = 6.dp))
+            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(horizontal = 4.dp)) {
+                Text("$bpm", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                Text("BPM", fontSize = 8.sp, color = Color.White.copy(alpha = 0.6f))
+            }
+            Text("+", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White,
+                modifier = Modifier.clickable { onBpmIncrease() }.padding(horizontal = 6.dp))
         }
     }
 }
 
-// -------------------------------------------------------------
-// 2B. PADS TOOLBAR (Sound FX, Record, Scene A/B)
-// -------------------------------------------------------------
 @Composable
 private fun PadsToolbar(
     selectedBank: PadBank,
     isRecording: Boolean,
+    recordingSeconds: Int,
+    recordingMode: RecordingMode,
+    isSoundFxOpen: Boolean,
+    isHoldMode: Boolean,
     onSoundFxClick: () -> Unit,
     onRecordClick: () -> Unit,
+    onToggleRecMode: () -> Unit,
+    onHoldToggle: () -> Unit,
     onSceneSelect: (PadBank) -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 14.dp, vertical = 4.dp),
+            .padding(horizontal = 4.dp, vertical = 2.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Sound FX Toggle Button
+        // Sound FX Drawer Toggle
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier.clickable { onSoundFxClick() }
         ) {
             Icon(
-                imageVector = Icons.Default.Menu,
+                imageVector = Icons.Default.Tune,
                 contentDescription = "Sound FX",
-                tint = Color.White.copy(alpha = 0.9f),
-                modifier = Modifier.size(24.dp)
+                tint = if (isSoundFxOpen) AccentCyan else Color.White.copy(alpha = 0.9f),
+                modifier = Modifier.size(22.dp)
             )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(text = "Sound FX", fontSize = 11.sp, color = Color.White.copy(alpha = 0.8f))
+            Text(
+                text = "Sound FX",
+                fontSize = 10.sp,
+                fontWeight = if (isSoundFxOpen) FontWeight.Bold else FontWeight.Normal,
+                color = if (isSoundFxOpen) AccentCyan else Color.White.copy(alpha = 0.8f)
+            )
         }
 
-        // Record Button
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.clickable { onRecordClick() }
-        ) {
+        // Record Button + Free/Loop Mode Toggle
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.clickable { onRecordClick() }
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .border(2.dp, if (isRecording) DangerRed else Color.White, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isRecording) {
+                        Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(DangerRed))
+                    }
+                }
+                Text(
+                    text = if (isRecording) String.format("%02d:%02d", recordingSeconds / 60, recordingSeconds % 60) else "Record",
+                    fontSize = 10.sp,
+                    fontWeight = if (isRecording) FontWeight.Bold else FontWeight.Normal,
+                    color = if (isRecording) DangerRed else Color.White.copy(alpha = 0.8f)
+                )
+            }
+
             Box(
                 modifier = Modifier
-                    .size(24.dp)
-                    .clip(CircleShape)
-                    .border(2.dp, if (isRecording) DangerRed else Color.White, CircleShape),
-                contentAlignment = Alignment.Center
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(if (recordingMode == RecordingMode.LOOP) Color(0xFF6C3CE9) else Color(0xFF281C48))
+                    .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                    .clickable { onToggleRecMode() }
+                    .padding(horizontal = 6.dp, vertical = 4.dp)
             ) {
-                if (isRecording) {
-                    Box(
-                        modifier = Modifier
-                            .size(10.dp)
-                            .clip(CircleShape)
-                            .background(DangerRed)
-                    )
-                }
+                Text(
+                    text = if (recordingMode == RecordingMode.LOOP) "LOOP" else "FREE",
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
             }
-            Spacer(modifier = Modifier.height(2.dp))
+        }
+
+        // HOLD Mode Toggle (from Google Play reference screenshot!)
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(if (isHoldMode) AccentYellow else Color(0xFF281C48))
+                .border(1.dp, Color.White.copy(alpha = 0.2f), RoundedCornerShape(8.dp))
+                .clickable { onHoldToggle() }
+                .padding(horizontal = 8.dp, vertical = 5.dp)
+        ) {
             Text(
-                text = "Record",
-                fontSize = 11.sp,
-                color = if (isRecording) DangerRed else Color.White.copy(alpha = 0.8f)
+                text = "HOLD",
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (isHoldMode) Color.Black else Color.White.copy(alpha = 0.8f)
             )
         }
 
-        // Scene A / B Toggle
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+        // Scene A | B | 24 Switcher
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(8.dp))
                     .background(Color(0xFF352562))
                     .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
             ) {
-                // Scene A
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(7.dp))
-                        .background(if (selectedBank == PadBank.BANK_A) Color.White else Color.Transparent)
-                        .clickable { onSceneSelect(PadBank.BANK_A) }
-                        .padding(horizontal = 10.dp, vertical = 4.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "A",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (selectedBank == PadBank.BANK_A) Color.Black else Color.White.copy(alpha = 0.6f)
-                    )
-                }
-
-                // Scene B
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(7.dp))
-                        .background(if (selectedBank == PadBank.BANK_B) Color.White else Color.Transparent)
-                        .clickable { onSceneSelect(PadBank.BANK_B) }
-                        .padding(horizontal = 10.dp, vertical = 4.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "B",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (selectedBank == PadBank.BANK_B) Color.Black else Color.White.copy(alpha = 0.6f)
-                    )
+                listOf(PadBank.BANK_A to "A", PadBank.BANK_B to "B", PadBank.FULL_24 to "24").forEach { (bank, label) ->
+                    val sel = selectedBank == bank
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(7.dp))
+                            .background(if (sel) Color.White else Color.Transparent)
+                            .clickable { onSceneSelect(bank) }
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = label,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (sel) Color.Black else Color.White.copy(alpha = 0.65f)
+                        )
+                    }
                 }
             }
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(text = "Scene", fontSize = 11.sp, color = Color.White.copy(alpha = 0.8f))
+            Text(text = "Scene", fontSize = 10.sp, color = Color.White.copy(alpha = 0.75f))
         }
     }
 }
 
-// -------------------------------------------------------------
-// 3. QUICK FX BAR (6 Buttons from Video)
-// -------------------------------------------------------------
 @Composable
 private fun QuickFxBar(
     activeFx: String?,
     onFxClick: (String) -> Unit
 ) {
     val fxList = listOf("Horn", "Elphnt", "Reload", "Scrtch", "Vinyl", "Watch")
-
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -547,7 +606,7 @@ private fun QuickFxBar(
                     .weight(1f)
                     .background(if (isActive) Color(0xFF6C3CE9) else Color.Transparent)
                     .clickable { onFxClick(name) }
-                    .padding(vertical = 8.dp),
+                    .padding(vertical = 7.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -558,81 +617,48 @@ private fun QuickFxBar(
                 )
             }
             if (index < fxList.lastIndex) {
-                Box(
-                    modifier = Modifier
-                        .width(1.dp)
-                        .height(30.dp)
-                        .background(Color.White.copy(alpha = 0.12f))
-                )
+                Box(modifier = Modifier.width(1.dp).height(26.dp).background(Color.White.copy(alpha = 0.12f)))
             }
         }
     }
 }
 
-// -------------------------------------------------------------
-// 4. MAIN GLOWING NEON PADS (Video 2: 3 cols x 4 rows)
-// -------------------------------------------------------------
 @Composable
 private fun GlowingPadsGridView(
     uiState: DrumPadsUiState,
     viewModel: DrumPadsViewModel
 ) {
-    val isSceneB = uiState.selectedBank == PadBank.BANK_B
-    val startIndex = if (isSceneB) 12 else 0
-
-    // Exact color mappings matching Drum Pads 24 store listing & app UI
-    val padColors = remember(isSceneB) {
-        if (!isSceneB) {
-            // Scene A: Signature Drum Pads 24 Kit
-            // Row 0: 3 Lime Green pads
-            // Row 1: 1 Lime Green, 1 Vivid Orange, 1 Neon Magenta/Purple
-            // Row 2: 3 Vivid Orange pads (center pad turns radiant white when tapped)
-            // Row 3: 3 Electric Sky Blue / Cyan pads
-            listOf(
-                Color(0xFF38E54D), Color(0xFF38E54D), Color(0xFF38E54D), // Row 0
-                Color(0xFF38E54D), Color(0xFFFF7A00), Color(0xFFE040FB), // Row 1
-                Color(0xFFFF7A00), Color(0xFFFF7A00), Color(0xFFFF7A00), // Row 2
-                Color(0xFF00B0FF), Color(0xFF00B0FF), Color(0xFF00B0FF)  // Row 3
-            )
-        } else {
-            // Scene B: Alternative Electronic Kit
-            listOf(
-                Color(0xFFFF2E93), Color(0xFFFF2E93), Color(0xFFFF2E93), // Row 0: Hot Pink
-                Color(0xFF9D00FF), Color(0xFF9D00FF), Color(0xFF9D00FF), // Row 1: Electric Violet
-                Color(0xFFFFD600), Color(0xFFFFD600), Color(0xFFFFD600), // Row 2: Neon Amber
-                Color(0xFF00F5D4), Color(0xFF00F5D4), Color(0xFF00F5D4)  // Row 3: Neon Aqua
-            )
-        }
-    }
+    val cols = if (uiState.selectedBank == PadBank.FULL_24) 4 else 3
+    val rows = if (uiState.selectedBank == PadBank.FULL_24) 6 else 4
+    val startIndex = if (uiState.selectedBank == PadBank.BANK_B) 12 else 0
+    val targetTutPad = uiState.activeTutorial?.takeIf { !it.isCompleted }?.targetPadIndex
 
     Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .fillMaxHeight(),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        modifier = Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(if (rows == 6) 5.dp else 8.dp)
     ) {
-        for (row in 0 until 4) {
+        for (row in 0 until rows) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .weight(1f),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier.fillMaxWidth().weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(if (cols == 4) 5.dp else 8.dp)
             ) {
-                for (col in 0 until 3) {
-                    val localIndex = row * 3 + col
-                    val absolutePadIndex = startIndex + localIndex
-                    val baseColor = padColors.getOrElse(localIndex) { Color(0xFFE67E22) }
-                    val isPressed = uiState.activePads.contains(absolutePadIndex)
+                for (col in 0 until cols) {
+                    val absoluteIndex = startIndex + row * cols + col
+                    val pad = uiState.pads.getOrNull(absoluteIndex)
+                    val baseColor = parseHexColor(pad?.colorHex ?: "#38E54D")
+                    val isPressed = uiState.activePads.contains(absoluteIndex)
+                    val isTutorialTarget = (targetTutPad == absoluteIndex)
 
                     PadCell(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight(),
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        pad = pad,
                         baseColor = baseColor,
                         isPressed = isPressed,
-                        isLightShowEnabled = uiState.isLightShowEnabled,
-                        onDown = { viewModel.onPadDown(absolutePadIndex) },
-                        onUp = { viewModel.onPadUp(absolutePadIndex) }
+                        isTutorialTarget = isTutorialTarget,
+                        showLabel = uiState.showPadLabels,
+                        compact = (rows == 6),
+                        onDown = { viewModel.onPadDown(absoluteIndex) },
+                        onUp = { viewModel.onPadUp(absoluteIndex) }
                     )
                 }
             }
@@ -643,43 +669,39 @@ private fun GlowingPadsGridView(
 @Composable
 private fun PadCell(
     modifier: Modifier = Modifier,
+    pad: Pad?,
     baseColor: Color,
     isPressed: Boolean,
-    isLightShowEnabled: Boolean,
+    isTutorialTarget: Boolean,
+    showLabel: Boolean,
+    compact: Boolean,
     onDown: () -> Unit,
     onUp: () -> Unit
 ) {
     val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1.0f,
+        targetValue = if (isPressed) 0.96f else 1.0f,
         animationSpec = spring(stiffness = Spring.StiffnessHigh),
-        label = "scale"
+        label = "padScale"
     )
 
-    // Authentic hardware pad surface: solid, rich, vivid neon colors (no murky translucency)
-    // When pressed, turns pure brilliant solid white just like in the Drum Pads 24 screenshots
-    val backgroundBrush = remember(isPressed, baseColor, isLightShowEnabled) {
+    val backgroundBrush = remember(isPressed, baseColor) {
         if (isPressed) {
-            Brush.verticalGradient(
-                colors = listOf(
-                    Color(0xFFFFFFFF),
-                    Color(0xFFF8F9FA)
-                )
-            )
+            Brush.verticalGradient(listOf(Color.White, Color(0xFFF3F4F6)))
         } else {
             Brush.verticalGradient(
-                colors = listOf(
+                listOf(
                     Color(
-                        red = (baseColor.red * 0.82f + 0.18f).coerceIn(0f, 1f),
-                        green = (baseColor.green * 0.82f + 0.18f).coerceIn(0f, 1f),
-                        blue = (baseColor.blue * 0.82f + 0.18f).coerceIn(0f, 1f),
-                        alpha = 1.0f
+                        (baseColor.red * 0.80f + 0.20f).coerceIn(0f, 1f),
+                        (baseColor.green * 0.80f + 0.20f).coerceIn(0f, 1f),
+                        (baseColor.blue * 0.80f + 0.20f).coerceIn(0f, 1f),
+                        1f
                     ),
                     baseColor,
                     Color(
-                        red = (baseColor.red * 0.85f).coerceIn(0f, 1f),
-                        green = (baseColor.green * 0.85f).coerceIn(0f, 1f),
-                        blue = (baseColor.blue * 0.85f).coerceIn(0f, 1f),
-                        alpha = 1.0f
+                        (baseColor.red * 0.80f).coerceIn(0f, 1f),
+                        (baseColor.green * 0.80f).coerceIn(0f, 1f),
+                        (baseColor.blue * 0.80f).coerceIn(0f, 1f),
+                        1f
                     )
                 )
             )
@@ -689,14 +711,22 @@ private fun PadCell(
     Box(
         modifier = modifier
             .scale(scale)
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(if (compact) 10.dp else 14.dp))
             .background(backgroundBrush)
             .border(
-                width = if (isPressed) 2.5.dp else 1.dp,
-                color = if (isPressed) Color.White else Color.White.copy(alpha = 0.22f),
-                shape = RoundedCornerShape(14.dp)
+                width = when {
+                    isTutorialTarget -> 3.5.dp
+                    isPressed -> 2.5.dp
+                    else -> 1.dp
+                },
+                color = when {
+                    isTutorialTarget -> AccentCyan
+                    isPressed -> Color.White
+                    else -> Color.White.copy(alpha = 0.22f)
+                },
+                shape = RoundedCornerShape(if (compact) 10.dp else 14.dp)
             )
-            .pointerInput(Unit) {
+            .pointerInput(pad?.index) {
                 awaitEachGesture {
                     awaitFirstDown()
                     onDown()
@@ -706,31 +736,65 @@ private fun PadCell(
                     onUp()
                 }
             }
-    )
+            .padding(if (compact) 4.dp else 8.dp)
+    ) {
+        if (isTutorialTarget) {
+            Text(
+                text = "TAP",
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Black,
+                color = Color.Black,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(AccentCyan)
+                    .padding(horizontal = 5.dp, vertical = 1.dp)
+            )
+        } else if (pad != null && (pad.playMode != PadPlayMode.ONE_SHOT || pad.chokeGroup > 0)) {
+            val tag = if (pad.playMode == PadPlayMode.LOOP) "∞" else if (pad.chokeGroup > 0) "C${pad.chokeGroup}" else ""
+            if (tag.isNotEmpty()) {
+                Text(
+                    text = tag,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isPressed) Color.Black else Color.White.copy(alpha = 0.85f),
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(Color.Black.copy(alpha = 0.35f))
+                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                )
+            }
+        }
+
+        if (showLabel && pad != null) {
+            Text(
+                text = pad.name,
+                fontSize = if (compact) 9.sp else 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = if (isPressed) Color.Black else Color.White.copy(alpha = 0.92f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(if (isPressed) Color.Transparent else Color.Black.copy(alpha = 0.25f))
+                    .padding(horizontal = 4.dp, vertical = 1.dp)
+            )
+        }
+    }
 }
 
-// -------------------------------------------------------------
-// 5. CLIPS MATRIX VIEW (Video 1: 4 cols x 3 rows = 12 clips)
-// -------------------------------------------------------------
 @Composable
 private fun ClipsMatrixView(
+    clips: List<ClipSlot>,
     activeClips: Set<Int>,
     selectedClipIndex: Int,
-    bpm: Int,
+    currentStep: Int,
+    isRecording: Boolean,
     onClipClick: (Int) -> Unit
 ) {
-    // Continuous playhead sweeping line from top (0f) to bottom (1f)
-    val infiniteTransition = rememberInfiniteTransition(label = "playhead")
-    val loopDurationMs = (60_000L / bpm) * 2 // 2-bar loop duration
-    val playheadProgress by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = loopDurationMs.toInt(), easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "progress"
-    )
+    val playheadProgress = (currentStep % 16) / 16f
 
     LazyVerticalGrid(
         columns = GridCells.Fixed(4),
@@ -738,16 +802,17 @@ private fun ClipsMatrixView(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(12) { index ->
+        items(clips.size) { index ->
+            val clip = clips[index]
             val isPlaying = activeClips.contains(index)
             val isSelected = selectedClipIndex == index
-            val isEmptySlot = index >= 8
+            val isRecordingIntoThis = isRecording && isSelected
 
             ClipTile(
-                index = index,
+                clip = clip,
                 isPlaying = isPlaying,
                 isSelected = isSelected,
-                isEmptySlot = isEmptySlot,
+                isRecordingTarget = isRecordingIntoThis,
                 playheadProgress = playheadProgress,
                 onClick = { onClipClick(index) }
             )
@@ -757,56 +822,82 @@ private fun ClipsMatrixView(
 
 @Composable
 private fun ClipTile(
-    index: Int,
+    clip: ClipSlot,
     isPlaying: Boolean,
     isSelected: Boolean,
-    isEmptySlot: Boolean,
+    isRecordingTarget: Boolean,
     playheadProgress: Float,
     onClick: () -> Unit
 ) {
+    val accent = parseHexColor(clip.colorHex)
     Box(
         modifier = Modifier
             .aspectRatio(1f)
             .clip(RoundedCornerShape(12.dp))
-            .background(
-                if (isPlaying) Color(0xFF281E60) else Color(0xFF1B1A32)
-            )
+            .background(if (isPlaying) Color(0xFF281E60) else Color(0xFF1B1A32))
             .border(
-                width = if (isSelected) 2.dp else 1.dp,
+                width = if (isRecordingTarget || isSelected) 2.dp else 1.dp,
                 color = when {
+                    isRecordingTarget -> DangerRed
                     isSelected -> Color.White
-                    isPlaying -> Color(0xFF8B5CF6)
-                    else -> Color.White.copy(alpha = 0.08f)
+                    isPlaying -> accent
+                    else -> Color.White.copy(alpha = 0.1f)
                 },
                 shape = RoundedCornerShape(12.dp)
             )
             .clickable { onClick() }
             .padding(6.dp)
     ) {
-        if (isEmptySlot) {
-            // Empty slot with '+' icon
-            Box(
+        if (clip.isEmpty) {
+            Column(
                 modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                Text(
-                    text = "+",
-                    fontSize = 20.sp,
-                    color = Color.White.copy(alpha = 0.5f),
-                    fontWeight = FontWeight.Light
-                )
+                Text("+", fontSize = 20.sp, color = Color.White.copy(alpha = 0.55f), fontWeight = FontWeight.Light)
+                Text("Clip ${clip.index + 1}", fontSize = 9.sp, color = Color.White.copy(alpha = 0.4f))
             }
         } else {
-            // MIDI Sequencer dots/bars
             Box(modifier = Modifier.fillMaxSize()) {
-                MiniMidiPattern(clipIndex = index)
+                // REAL pattern visualization from clip.hits!
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(bottom = 12.dp),
+                    verticalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    val distinctPads = clip.hits.map { it.padIndex }.distinct().take(4)
+                    distinctPads.forEach { pIdx ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            for (step in 0 until 8) {
+                                val hitPresent = clip.hits.any { it.padIndex == pIdx && (it.step / 2) == step }
+                                Box(
+                                    modifier = Modifier
+                                        .size(if (hitPresent) 5.dp else 3.dp)
+                                        .clip(CircleShape)
+                                        .background(if (hitPresent) accent else Color.White.copy(alpha = 0.1f))
+                                )
+                            }
+                        }
+                    }
+                }
 
-                // Sweeping playhead line when playing
+                Text(
+                    text = clip.name,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White.copy(alpha = 0.85f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.align(Alignment.BottomStart)
+                )
+
                 if (isPlaying) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .fillMaxHeight(playheadProgress)
+                            .fillMaxHeight(playheadProgress.coerceAtLeast(0.05f))
                     ) {
                         Box(
                             modifier = Modifier
@@ -823,245 +914,237 @@ private fun ClipTile(
 }
 
 @Composable
-private fun MiniMidiPattern(clipIndex: Int) {
-    val dotColors = listOf(
-        Color(0xFFFFD166), // Yellow
-        Color(0xFF06D6A0), // Green
-        Color(0xFF118AB2), // Blue
-        Color(0xFFEF476F)  // Red/Pink
-    )
-
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.SpaceEvenly
-    ) {
-        for (r in 0 until 5) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                for (c in 0 until 5) {
-                    val shouldShow = ((clipIndex * 7 + r * 3 + c) % 4) == 0
-                    if (shouldShow) {
-                        val color = dotColors[(clipIndex + r + c) % dotColors.size]
-                        Box(
-                            modifier = Modifier
-                                .size(3.dp)
-                                .clip(CircleShape)
-                                .background(color)
-                        )
-                    } else {
-                        Spacer(modifier = Modifier.size(3.dp))
-                    }
-                }
-            }
-        }
-    }
-}
-
-// -------------------------------------------------------------
-// 6. CLIP ACTION BAR (Edit, Duplicate, Delete)
-// -------------------------------------------------------------
-@Composable
 private fun ClipActionBar(
     onEdit: () -> Unit,
     onDuplicate: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onToggleFx: () -> Unit,
+    isFxOpen: Boolean
 ) {
     Row(
         modifier = Modifier
-            .clip(RoundedCornerShape(24.dp))
+            .clip(RoundedCornerShape(22.dp))
             .background(Color(0xFF382A72))
-            .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(24.dp))
+            .border(1.dp, Color.White.copy(alpha = 0.16f), RoundedCornerShape(22.dp)),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        // Edit
-        Row(
-            modifier = Modifier
-                .clickable { onEdit() }
-                .padding(horizontal = 18.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.Edit,
-                contentDescription = "Edit",
-                tint = Color.White,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(text = "Edit", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
-        }
-
-        Box(modifier = Modifier.width(1.dp).height(36.dp).background(Color.White.copy(alpha = 0.15f)))
-
-        // Duplicate
-        Row(
-            modifier = Modifier
-                .clickable { onDuplicate() }
-                .padding(horizontal = 18.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = "Duplicate",
-                tint = Color.White,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(text = "Duplicate", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
-        }
-
-        Box(modifier = Modifier.width(1.dp).height(36.dp).background(Color.White.copy(alpha = 0.15f)))
-
-        // Delete
-        Row(
-            modifier = Modifier
-                .clickable { onDelete() }
-                .padding(horizontal = 18.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.Delete,
-                contentDescription = "Delete",
-                tint = Color.White,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(6.dp))
-            Text(text = "Delete", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color.White)
-        }
+        ActionPillItem(Icons.Default.Edit, "Edit", onEdit)
+        Box(modifier = Modifier.width(1.dp).height(28.dp).background(Color.White.copy(alpha = 0.15f)))
+        ActionPillItem(Icons.Default.ContentCopy, "Copy", onDuplicate)
+        Box(modifier = Modifier.width(1.dp).height(28.dp).background(Color.White.copy(alpha = 0.15f)))
+        ActionPillItem(Icons.Default.Delete, "Clear", onDelete)
+        Box(modifier = Modifier.width(1.dp).height(28.dp).background(Color.White.copy(alpha = 0.15f)))
+        ActionPillItem(Icons.Default.Tune, if (isFxOpen) "Hide FX" else "FX", onToggleFx)
     }
 }
 
-// -------------------------------------------------------------
-// 7. AUDIO FX FADERS (Horizontal Capsule Sliders)
-// -------------------------------------------------------------
 @Composable
-private fun AudioFadersStrip(
-    volume: Float,
-    echo116: Float,
-    echo18: Float,
-    reverb: Float,
-    distortion: Float,
+private fun ActionPillItem(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier.clickable { onClick() }.padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, contentDescription = label, tint = Color.White, modifier = Modifier.size(15.dp))
+        Spacer(modifier = Modifier.width(4.dp))
+        Text(label, fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+    }
+}
+
+/**
+ * Full 10-FX Real-Time DSP Audio Effects Drawer:
+ * Rhythm FX: [FILL] [CLEAN] [RESET] + Live Stereo Peak Meter
+ * 10 Draggable Live DSP Faders: Volume, Lo-Fi, Filter, Pitch, Reverb, Delay 1/16, Delay 1/8, Distortion, Gate, Wobble
+ */
+@Composable
+private fun FullAudioFxDrawer(
+    dsp: DspEffectParams,
+    peakLevel: Float,
     onFaderChange: (String, Float) -> Unit,
-    onVipClick: () -> Unit
+    onFillClick: () -> Unit,
+    onCleanClick: () -> Unit,
+    onResetClick: () -> Unit
 ) {
     val faders = listOf(
-        FaderData("Volume", volume, isVip = false),
-        FaderData("Echo 1/16", echo116, isVip = true),
-        FaderData("Echo 1/8", echo18, isVip = true),
-        FaderData("Reverb", reverb, isVip = true),
-        FaderData("Distortion", distortion, isVip = true)
+        Triple("Volume", dsp.masterVolume, Color(0xFF00DFD8)),
+        Triple("Lo-Fi", dsp.lofiLevel, Color(0xFFFFD600)),
+        Triple("Filter", dsp.filterCutoff, Color(0xFF38E54D)),
+        Triple("Pitch", ((dsp.masterPitchSemitones / 24f) + 0.5f).coerceIn(0f, 1f), Color(0xFFFF2A85)),
+        Triple("Reverb", dsp.reverbLevel, Color(0xFF8B5CF6)),
+        Triple("Delay 1/16", dsp.delay116Level, Color(0xFF00B0FF)),
+        Triple("Delay 1/8", dsp.delay18Level, Color(0xFF00E5FF)),
+        Triple("Distortion", dsp.distortionLevel, Color(0xFFFF5E62)),
+        Triple("Gate", dsp.gateLevel, Color(0xFFE040FB)),
+        Triple("Wobble", dsp.wobbleLevel, Color(0xFFFF7A00))
     )
 
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
-            .horizontalScroll(rememberScrollState())
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(16.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFF15122B))
+            .border(1.dp, Color.White.copy(alpha = 0.14f), RoundedCornerShape(16.dp))
+            .padding(horizontal = 10.dp, vertical = 8.dp)
     ) {
-        faders.forEach { fader ->
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.width(64.dp)
+        // Rhythm FX Bar: FILL, CLEAN, RESET + Live Audio Peak Meter
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Brush.horizontalGradient(listOf(Color(0xFFFF2A85), Color(0xFFFF7A00))))
+                    .clickable { onFillClick() }
+                    .padding(horizontal = 14.dp, vertical = 6.dp)
             ) {
-                // Capsule Slider Track
+                Text("⚡ FILL", fontSize = 11.sp, fontWeight = FontWeight.Black, color = Color.White)
+            }
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFF06D6A0))
+                    .clickable { onCleanClick() }
+                    .padding(horizontal = 14.dp, vertical = 6.dp)
+            ) {
+                Text("✨ CLEAN", fontSize = 11.sp, fontWeight = FontWeight.Black, color = Color.Black)
+            }
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(Color(0xFF2B224C))
+                    .clickable { onResetClick() }
+                    .padding(horizontal = 10.dp, vertical = 6.dp)
+            ) {
+                Text("Reset", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = Color.White.copy(alpha = 0.85f))
+            }
+
+            // Live Audio Level Meter
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .height(10.dp)
+                    .clip(RoundedCornerShape(5.dp))
+                    .background(Color(0xFF0B091A))
+            ) {
                 Box(
                     modifier = Modifier
-                        .width(42.dp)
-                        .height(88.dp)
-                        .clip(RoundedCornerShape(21.dp))
-                        .background(Color(0xFF221A3E))
-                        .border(1.dp, Color.White.copy(alpha = 0.15f), RoundedCornerShape(21.dp))
-                        .clickable {
-                            if (fader.isVip) {
-                                onVipClick()
-                            } else {
-                                val next = if (fader.value > 0.5f) 0.2f else 0.85f
-                                onFaderChange(fader.title, next)
-                            }
-                        },
-                    contentAlignment = Alignment.BottomCenter
-                ) {
-                    // Filled level
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .fillMaxHeight(fader.value)
-                            .background(
-                                Brush.verticalGradient(
-                                    listOf(Color(0xFF8B5CF6), Color(0xFF4C1D95))
-                                )
-                            )
-                    )
+                        .fillMaxHeight()
+                        .fillMaxWidth(peakLevel.coerceIn(0.02f, 1f))
+                        .background(
+                            Brush.horizontalGradient(listOf(Color(0xFF38E54D), Color(0xFFFFD600), Color(0xFFFF2A85)))
+                        )
+                )
+            }
+        }
 
-                    // Groove center line
-                    Box(
-                        modifier = Modifier
-                            .width(2.dp)
-                            .fillMaxHeight(0.85f)
-                            .background(Color.White.copy(alpha = 0.25f))
-                    )
+        Spacer(modifier = Modifier.height(8.dp))
 
-                    // VIP Crown badge at top right
-                    if (fader.isVip) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(4.dp)
-                                .size(16.dp)
-                                .clip(CircleShape)
-                                .background(Color(0xFF8B5CF6)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Star,
-                                contentDescription = "VIP",
-                                tint = Color.White,
-                                modifier = Modifier.size(10.dp)
-                            )
-                        }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(4.dp))
-
-                Text(
-                    text = fader.title,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.White.copy(alpha = 0.75f)
+        // 10 Draggable Vertical DSP Faders
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            faders.forEach { (title, value, color) ->
+                InteractiveVerticalFader(
+                    title = title,
+                    value = value,
+                    accentColor = color,
+                    displayValue = if (title == "Pitch") {
+                        val st = ((value - 0.5f) * 24f).roundToInt()
+                        if (st > 0) "+${st}st" else "${st}st"
+                    } else {
+                        "${(value * 100).roundToInt()}%"
+                    },
+                    onChange = { newVal -> onFaderChange(title, newVal) }
                 )
             }
         }
     }
 }
 
-private data class FaderData(
-    val title: String,
-    val value: Float,
-    val isVip: Boolean
-)
-
-// -------------------------------------------------------------
-// 8. NEON BRANDING
-// -------------------------------------------------------------
 @Composable
-private fun NeonAppBranding() {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center
+private fun InteractiveVerticalFader(
+    title: String,
+    value: Float,
+    accentColor: Color,
+    displayValue: String,
+    onChange: (Float) -> Unit
+) {
+    val currentValue by rememberUpdatedState(value)
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.width(58.dp)
     ) {
         Text(
-            text = "Drum Pads ",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Black,
-            color = Color(0xFFFF2A85) // Vivid neon pink
+            text = displayValue,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
+            color = accentColor
         )
+        Spacer(modifier = Modifier.height(2.dp))
+        Box(
+            modifier = Modifier
+                .width(38.dp)
+                .height(84.dp)
+                .clip(RoundedCornerShape(19.dp))
+                .background(Color(0xFF221A3E))
+                .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(19.dp))
+                .pointerInput(title) {
+                    detectVerticalDragGestures { change, dragAmount ->
+                        change.consume()
+                        val delta = -dragAmount / size.height.toFloat()
+                        onChange((currentValue + delta).coerceIn(0f, 1f))
+                    }
+                }
+                .clickable {
+                    // Quick toggle preset on tap
+                    val next = if (title == "Pitch") 0.5f else if (currentValue > 0.3f) 0f else 0.7f
+                    onChange(next)
+                },
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(value.coerceIn(0.02f, 1f))
+                    .background(Brush.verticalGradient(listOf(accentColor, accentColor.copy(alpha = 0.45f))))
+            )
+            Box(
+                modifier = Modifier
+                    .width(2.dp)
+                    .fillMaxHeight(0.8f)
+                    .background(Color.White.copy(alpha = 0.25f))
+            )
+        }
+        Spacer(modifier = Modifier.height(3.dp))
         Text(
-            text = "24",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Black,
-            color = Color(0xFF00E5FF) // Vivid electric cyan
+            text = title,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color.White.copy(alpha = 0.85f),
+            maxLines = 1
         )
+    }
+}
+
+@Composable
+private fun NeonAppBranding() {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text("Drum Pads ", fontSize = 14.sp, fontWeight = FontWeight.Black, color = Color(0xFFFF2A85))
+        Text("24", fontSize = 14.sp, fontWeight = FontWeight.Black, color = Color(0xFF00E5FF))
+    }
+}
+
+fun parseHexColor(hex: String): Color {
+    return try {
+        Color(android.graphics.Color.parseColor(hex))
+    } catch (_: Throwable) {
+        Color(0xFF38E54D)
     }
 }

@@ -1,107 +1,38 @@
 package com.drumpads.app.core.audio
 
 import android.content.Context
-import android.util.Log
+import com.drumpads.app.domain.model.Pad
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * AudioEngine bridge routing directly through the real-time low-latency AudioTrack DSP engine
+ * so all 10 live DSP FX, per-pad Pitch/Trim/Fade/Choke, and post-FX WAV recording work on every Android device.
+ */
 @Singleton
 class NativeAudioEngineBridge @Inject constructor() : AudioEngine {
 
-    private val jvmFallback = JvmAudioEngine()
-    private var isNativeAvailable = false
+    private val dspEngine = JvmAudioEngine()
 
-    init {
-        try {
-            System.loadLibrary("drumpads_audio")
-            isNativeAvailable = true
-            Log.i("NativeAudioEngineBridge", "Loaded native drumpads_audio library successfully")
-        } catch (t: Throwable) {
-            isNativeAvailable = false
-            Log.w("NativeAudioEngineBridge", "Native audio library not loaded, using JVM audio engine fallback: ${t.message}")
-        }
-    }
-
-    override fun init() {
-        if (isNativeAvailable) {
-            nativeInit()
-        } else {
-            jvmFallback.init()
-        }
-    }
-
-    /** Pass Android Context to JVM fallback so SoundPool can be initialized. */
-    override fun initWithContext(context: Context) {
-        jvmFallback.initWithContext(context)
-    }
-
-    override fun start(): Boolean {
-        return if (isNativeAvailable) {
-            nativeStart()
-        } else {
-            jvmFallback.start()
-        }
-    }
-
-    override fun stop() {
-        if (isNativeAvailable) {
-            nativeStop()
-        } else {
-            jvmFallback.stop()
-        }
-    }
-
-    override fun triggerPad(padIndex: Int): Boolean {
-        return if (isNativeAvailable) {
-            nativeTriggerPad(padIndex)
-        } else {
-            jvmFallback.triggerPad(padIndex)
-        }
-    }
-
-    override fun loadSample(padIndex: Int, pcmData: ShortArray) {
-        if (isNativeAvailable) {
-            nativeLoadSample(padIndex, pcmData, pcmData.size)
-        } else {
-            jvmFallback.loadSample(padIndex, pcmData)
-        }
-    }
-
-    /** Delegate asset loading to JVM fallback's SoundPool. */
-    override fun loadAssetSample(padIndex: Int, assetPath: String) {
-        jvmFallback.loadAssetSample(padIndex, assetPath)
-    }
-
-    override fun setStressTest(enable: Boolean) {
-        if (isNativeAvailable) {
-            nativeSetStressTest(enable)
-        } else {
-            jvmFallback.setStressTest(enable)
-        }
-    }
-
-    override fun isStressTestActive(): Boolean {
-        return jvmFallback.isStressTestActive()
-    }
-
-    override fun getXRunCount(): Int {
-        return if (isNativeAvailable) {
-            nativeGetXRunCount()
-        } else {
-            jvmFallback.getXRunCount()
-        }
-    }
-
-    override fun getActiveVoiceCount(): Int {
-        return jvmFallback.getActiveVoiceCount()
-    }
-
-    // JNI Native methods
-    private external fun nativeInit()
-    private external fun nativeStart(): Boolean
-    private external fun nativeStop()
-    private external fun nativeTriggerPad(padIndex: Int): Boolean
-    private external fun nativeLoadSample(padIndex: Int, pcmData: ShortArray, length: Int)
-    private external fun nativeSetStressTest(enable: Boolean)
-    private external fun nativeGetXRunCount(): Int
+    override fun init() = dspEngine.init()
+    override fun initWithContext(context: Context) = dspEngine.initWithContext(context)
+    override fun start(): Boolean = dspEngine.start()
+    override fun stop() = dspEngine.stop()
+    override fun triggerPad(padIndex: Int): Boolean = dspEngine.triggerPad(padIndex)
+    override fun releasePad(padIndex: Int) = dspEngine.releasePad(padIndex)
+    override fun stopAllVoices() = dspEngine.stopAllVoices()
+    override fun loadSample(padIndex: Int, pcmData: ShortArray) = dspEngine.loadSample(padIndex, pcmData)
+    override fun loadFloatSample(padIndex: Int, floatData: FloatArray) = dspEngine.loadFloatSample(padIndex, floatData)
+    override fun getSampleBuffer(padIndex: Int): FloatArray = dspEngine.getSampleBuffer(padIndex)
+    override fun loadAssetSample(padIndex: Int, assetPath: String) = dspEngine.loadAssetSample(padIndex, assetPath)
+    override fun updatePadConfig(pad: Pad) = dspEngine.updatePadConfig(pad)
+    override fun setDspParams(params: DspEffectParams) = dspEngine.setDspParams(params)
+    override fun setBpm(bpm: Int) = dspEngine.setBpm(bpm)
+    override fun setAudioTapListener(listener: ((ShortArray, Int) -> Unit)?) = dspEngine.setAudioTapListener(listener)
+    override fun getPeakLevel(): Float = dspEngine.getPeakLevel()
+    override fun playMetronomeClick(accent: Boolean) = dspEngine.playMetronomeClick(accent)
+    override fun setStressTest(enable: Boolean) = dspEngine.setStressTest(enable)
+    override fun isStressTestActive(): Boolean = dspEngine.isStressTestActive()
+    override fun getXRunCount(): Int = dspEngine.getXRunCount()
+    override fun getActiveVoiceCount(): Int = dspEngine.getActiveVoiceCount()
 }

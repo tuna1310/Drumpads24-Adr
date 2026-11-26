@@ -3,16 +3,18 @@ package com.drumpads.app.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -22,6 +24,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.drumpads.app.domain.model.MusicGenre
+import com.drumpads.app.domain.model.SoundPack
 import com.drumpads.app.ui.pads.ActiveScreen
 import com.drumpads.app.ui.pads.DrumPadsUiState
 import com.drumpads.app.ui.pads.DrumPadsViewModel
@@ -33,366 +37,397 @@ fun SoundsScreen(
     viewModel: DrumPadsViewModel,
     modifier: Modifier = Modifier
 ) {
-    val stories = listOf(
-        Pair("Kilimanjaro", listOf(Color(0xFFFF9966), Color(0xFFFF5E62))),
-        Pair("Rain Dance", listOf(Color(0xFF2193B0), Color(0xFF6DD5ED))),
-        Pair("Equilibrium", listOf(Color(0xFF8A2387), Color(0xFFE94057))),
-        Pair("Medium Rare", listOf(Color(0xFFF12711), Color(0xFFF5AF19))),
-        Pair("Heavenly", listOf(Color(0xFF00C9FF), Color(0xFF92FE9D))),
-        Pair("Cyber Drift", listOf(Color(0xFF4776E6), Color(0xFF8E54E9)))
-    )
+    var showSearchBar by remember { mutableStateOf(false) }
 
-    val newPacks = listOf(
-        Triple("You Are Dead", "DrumPads 24", listOf(Color(0xFFF857A6), Color(0xFFFF5858))),
-        Triple("Bleed", "DrumPads 24", listOf(Color(0xFFFF0844), Color(0xFFFFB199))),
-        Triple("Zombie Land", "DrumPads 24", listOf(Color(0xFF11998E), Color(0xFF38EF7D))),
-        Triple("Retro City", "Neon Synth", listOf(Color(0xFF5F2C82), Color(0xFF49A09D)))
-    )
-
-    val upcomingPacks = listOf("Cocoon", "Dancing", "Dark Matter", "Sunset Chill")
-
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .background(NavyBackground),
-        contentPadding = PaddingValues(bottom = 90.dp)
-    ) {
-        // 1. Top Header
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Drum Pads 24",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Black,
-                    color = AccentCyan
-                )
-
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    IconButton(
-                        onClick = { viewModel.openPadPlayer("Cyber Neon 24") },
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(NavyCard)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Random Pack",
-                            tint = TextPrimary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-
-                    IconButton(
-                        onClick = { viewModel.navigateTo(ActiveScreen.PAYWALL) },
-                        modifier = Modifier
-                            .size(38.dp)
-                            .clip(CircleShape)
-                            .background(NavyCard)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = "Search",
-                            tint = TextPrimary,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-            }
+    val featuredStories = remember(uiState.allSoundPacks) {
+        uiState.allSoundPacks.filter { it.isFeaturedStory }
+    }
+    val newPacks = remember(uiState.allSoundPacks) {
+        uiState.allSoundPacks.filter { it.isNewRelease }
+    }
+    val filteredPacks = remember(uiState.allSoundPacks, uiState.selectedLibraryGenre, uiState.librarySearchQuery) {
+        uiState.allSoundPacks.filter { pack ->
+            val genreMatch = uiState.selectedLibraryGenre == MusicGenre.ALL || pack.genre == uiState.selectedLibraryGenre
+            val q = uiState.librarySearchQuery.trim()
+            val queryMatch = q.isEmpty() ||
+                pack.title.contains(q, ignoreCase = true) ||
+                pack.genre.label.contains(q, ignoreCase = true) ||
+                pack.subtitle.contains(q, ignoreCase = true) ||
+                pack.artist.contains(q, ignoreCase = true)
+            genreMatch && queryMatch
         }
+    }
+    val recentFirst = uiState.recentPackIds.firstOrNull()?.let { id ->
+        uiState.allSoundPacks.firstOrNull { it.id == id }
+    } ?: uiState.allSoundPacks.first()
 
-        // 2. Horizontal Stories Row
-        item {
-            LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                items(stories) { (name, gradient) ->
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.clickable { viewModel.openPadPlayer(name) }
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(64.dp)
-                                .clip(CircleShape)
-                                .border(2.dp, Brush.linearGradient(gradient), CircleShape)
-                                .padding(3.dp)
-                                .clip(CircleShape)
-                                .background(Brush.radialGradient(gradient)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = name.take(2).uppercase(),
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = name,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = TextSecondary,
-                            maxLines = 1
-                        )
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(20.dp))
-        }
-
-        // 3. Recently Used Section
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Recently used",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
-                )
-                Text(
-                    text = "See all >",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = AccentYellow,
-                    modifier = Modifier.clickable { viewModel.navigateTo(ActiveScreen.RECENTLY_USED) }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Recently used card banner
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .clip(RoundedCornerShape(18.dp))
-                    .background(NavyCard)
-                    .border(1.dp, NavyBorder, RoundedCornerShape(18.dp))
-                    .clickable { viewModel.openPadPlayer("Hyphy") }
-                    .padding(14.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
+    Box(modifier = modifier.fillMaxSize().background(NavyBackground)) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(bottom = 145.dp)
+        ) {
+            // 1. Top Header
+            item {
+                Row(
                     modifier = Modifier
-                        .size(54.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Brush.linearGradient(listOf(Color(0xFFE94057), Color(0xFFF27121)))),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.PlayArrow,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(28.dp)
-                    )
-                }
+                    Column {
+                        Text("Drum Pads 24", fontSize = 22.sp, fontWeight = FontWeight.Black, color = AccentCyan)
+                        Text("${uiState.allSoundPacks.size} Sound Packs • 12 Genres", fontSize = 11.sp, color = TextSecondary)
+                    }
 
-                Spacer(modifier = Modifier.width(14.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = "Hyphy",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "Drum Pads 24 • 120 BPM • 24 Pads",
-                        fontSize = 12.sp,
-                        color = TextSecondary
-                    )
-                }
-
-                Icon(
-                    imageVector = Icons.Default.ArrowForward,
-                    contentDescription = "Open",
-                    tint = TextSecondary,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-        }
-
-        // 4. New Sound Packs Section
-        item {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "New",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary
-                )
-                Text(
-                    text = "See all >",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = AccentYellow,
-                    modifier = Modifier.clickable { viewModel.navigateTo(ActiveScreen.PAYWALL) }
-                )
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                items(newPacks) { (title, subtitle, gradient) ->
-                    Column(
-                        modifier = Modifier
-                            .width(136.dp)
-                            .clickable { viewModel.openPadPlayer(title) }
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(136.dp)
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(Brush.linearGradient(gradient))
-                                .padding(10.dp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        IconButton(
+                            onClick = { viewModel.openRandomPack() },
+                            modifier = Modifier.size(38.dp).clip(CircleShape).background(NavyCard)
                         ) {
-                            // Pro badge
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.TopEnd)
-                                    .size(24.dp)
-                                    .clip(CircleShape)
-                                    .background(ProBadgeColor),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Star,
-                                    contentDescription = "Pro",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                            }
-
-                            // Center title on artwork
-                            Text(
-                                text = title.uppercase(),
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Black,
-                                color = Color.White,
-                                modifier = Modifier.align(Alignment.Center)
-                            )
-
-                            // Play preview button
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.BottomStart)
-                                    .size(32.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.Black.copy(alpha = 0.5f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.PlayArrow,
-                                    contentDescription = "Play",
-                                    tint = Color.White,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
+                            Icon(Icons.Default.Casino, contentDescription = "Random Pack", tint = AccentYellow, modifier = Modifier.size(20.dp))
                         }
 
-                        Spacer(modifier = Modifier.height(8.dp))
-
-                        Text(
-                            text = title,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = TextPrimary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            text = subtitle,
-                            fontSize = 11.sp,
-                            color = TextSecondary
-                        )
+                        IconButton(
+                            onClick = { showSearchBar = !showSearchBar },
+                            modifier = Modifier.size(38.dp).clip(CircleShape).background(if (showSearchBar) AccentCyan else NavyCard)
+                        ) {
+                            Icon(Icons.Default.Search, contentDescription = "Search", tint = if (showSearchBar) Color.Black else TextPrimary, modifier = Modifier.size(20.dp))
+                        }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
-        }
+            // Optional Search Bar
+            if (showSearchBar || uiState.librarySearchQuery.isNotEmpty()) {
+                item {
+                    OutlinedTextField(
+                        value = uiState.librarySearchQuery,
+                        onValueChange = { viewModel.setLibrarySearchQuery(it) },
+                        placeholder = { Text("Search genre (Phonk, Lofi, Trap...), pack name, artist...", color = TextMuted, fontSize = 13.sp) },
+                        leadingIcon = { Icon(Icons.Default.Search, contentDescription = null, tint = AccentCyan) },
+                        trailingIcon = {
+                            if (uiState.librarySearchQuery.isNotEmpty()) {
+                                IconButton(onClick = { viewModel.setLibrarySearchQuery("") }) {
+                                    Icon(Icons.Default.Clear, contentDescription = "Clear", tint = TextSecondary)
+                                }
+                            }
+                        },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedTextColor = TextPrimary,
+                            unfocusedTextColor = TextPrimary,
+                            focusedBorderColor = AccentCyan,
+                            unfocusedBorderColor = NavyBorder
+                        ),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)
+                    )
+                }
+            }
 
-        // 5. Upcoming Section
-        item {
-            Text(
-                text = "Upcoming",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = TextPrimary,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
+            // 2. Horizontal Stories Row (Featured Artists & Packs)
+            if (uiState.librarySearchQuery.isBlank() && uiState.selectedLibraryGenre == MusicGenre.ALL) {
+                item {
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        items(featuredStories) { pack ->
+                            val gradient = listOf(Color(pack.gradientStart), Color(pack.gradientEnd))
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                modifier = Modifier.clickable { viewModel.openSoundPack(pack) }
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(64.dp)
+                                        .clip(CircleShape)
+                                        .border(2.dp, Brush.linearGradient(gradient), CircleShape)
+                                        .padding(3.dp)
+                                        .clip(CircleShape)
+                                        .background(Brush.radialGradient(gradient)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(pack.title.take(2).uppercase(), fontSize = 16.sp, fontWeight = FontWeight.Black, color = Color.White)
+                                }
+                                Spacer(modifier = Modifier.height(5.dp))
+                                Text(pack.title, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary, maxLines = 1)
+                                Text(pack.genre.label, fontSize = 9.sp, color = TextSecondary, maxLines = 1)
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(14.dp))
+                }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(upcomingPacks) { name ->
+                // 3. Recently Used Banner
+                item {
                     Row(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(NavyCard)
-                            .border(1.dp, NavyBorder, RoundedCornerShape(12.dp))
-                            .clickable { viewModel.toggleMiniPlayer() }
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(28.dp)
-                                .clip(CircleShape)
-                                .background(NavyCardElevated),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.PlayArrow,
-                                contentDescription = "Play",
-                                tint = AccentCyan,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(10.dp))
+                        Text("Recently used", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                         Text(
-                            text = name,
-                            fontSize = 14.sp,
+                            "See all >",
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = TextPrimary
+                            color = AccentYellow,
+                            modifier = Modifier.clickable { viewModel.navigateTo(ActiveScreen.RECENTLY_USED) }
                         )
                     }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        val recentPacks = uiState.recentPackIds.mapNotNull { id ->
+                            uiState.allSoundPacks.firstOrNull { it.id == id }
+                        }.ifEmpty { uiState.allSoundPacks.take(4) }
+                        items(recentPacks) { pack ->
+                            Box(modifier = Modifier.width(300.dp)) {
+                                SoundPackRowCard(
+                                    pack = pack,
+                                    isPreviewing = uiState.previewingPackId == pack.id,
+                                    isFavorite = uiState.favoritePackIds.contains(pack.id),
+                                    onOpen = { viewModel.openSoundPack(pack) },
+                                    onPreview = { viewModel.togglePreviewPack(pack) },
+                                    onToggleFavorite = { viewModel.toggleFavoritePack(pack.id) }
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(18.dp))
+                }
+
+                // 4. New Releases Horizontal Carousel
+                item {
+                    Text(
+                        text = "New Releases & Hot Packs",
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(newPacks) { pack ->
+                            val isPreviewing = uiState.previewingPackId == pack.id
+                            Column(
+                                modifier = Modifier
+                                    .width(134.dp)
+                                    .clickable { viewModel.openSoundPack(pack) }
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(134.dp)
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(Brush.linearGradient(listOf(Color(pack.gradientStart), Color(pack.gradientEnd))))
+                                        .padding(10.dp)
+                                ) {
+                                    Text(
+                                        text = pack.genre.label.uppercase(),
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = Color.Black,
+                                        modifier = Modifier
+                                            .align(Alignment.TopStart)
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(Color.White.copy(alpha = 0.85f))
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+
+                                    Text(
+                                        text = pack.title.uppercase(),
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = Color.White,
+                                        maxLines = 2,
+                                        modifier = Modifier.align(Alignment.Center)
+                                    )
+
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.BottomStart)
+                                            .size(32.dp)
+                                            .clip(CircleShape)
+                                            .background(Color.Black.copy(alpha = 0.6f))
+                                            .clickable { viewModel.togglePreviewPack(pack) },
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isPreviewing) Icons.Default.Stop else Icons.Default.PlayArrow,
+                                            contentDescription = "Preview",
+                                            tint = if (isPreviewing) AccentYellow else Color.White,
+                                            modifier = Modifier.size(18.dp)
+                                        )
+                                    }
+
+                                    Text(
+                                        text = "${pack.bpm} BPM",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                        modifier = Modifier.align(Alignment.BottomEnd)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(pack.title, fontSize = 13.sp, fontWeight = FontWeight.Bold, color = TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                Text(pack.artist, fontSize = 11.sp, color = TextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(20.dp))
                 }
             }
+
+            // 5. 12-Genre Filter Strip (EDM, Trap, Hip-Hop, House, Dubstep, Phonk, Lo-Fi, Synthwave, DnB, Techno, R&B, Pop)
+            item {
+                Text(
+                    text = "Browse All Sound Packs",
+                    fontSize = 17.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextPrimary,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    MusicGenre.entries.forEach { genre ->
+                        val isSel = uiState.selectedLibraryGenre == genre
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(18.dp))
+                                .background(if (isSel) Color(genre.accentColor) else NavyCard)
+                                .border(1.dp, if (isSel) Color.White.copy(alpha = 0.4f) else NavyBorder, RoundedCornerShape(18.dp))
+                                .clickable { viewModel.selectLibraryGenre(genre) }
+                                .padding(horizontal = 14.dp, vertical = 7.dp)
+                        ) {
+                            Text(
+                                text = genre.label,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = if (isSel) Color.Black else TextPrimary
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(12.dp))
+            }
+
+            // 6. Filtered Sound Packs List (matching Play Store "EXPLORE SOUNDS" list!)
+            items(filteredPacks, key = { it.id }) { pack ->
+                SoundPackRowCard(
+                    pack = pack,
+                    isPreviewing = uiState.previewingPackId == pack.id,
+                    isFavorite = uiState.favoritePackIds.contains(pack.id),
+                    onOpen = { viewModel.openSoundPack(pack) },
+                    onPreview = { viewModel.togglePreviewPack(pack) },
+                    onToggleFavorite = { viewModel.toggleFavoritePack(pack.id) }
+                )
+                Spacer(modifier = Modifier.height(10.dp))
+            }
+        }
+
+        // Floating Action Button (+) to Create Custom Sound Pack (matching Play Store "EXPLORE SOUNDS" screenshot!)
+        FloatingActionButton(
+            onClick = { viewModel.navigateTo(ActiveScreen.PROJECT_EDITOR) },
+            containerColor = Color(0xFFFFB703),
+            contentColor = Color.Black,
+            shape = CircleShape,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(end = 18.dp, bottom = 148.dp)
+                .size(54.dp)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "Create Sound Pack", modifier = Modifier.size(28.dp))
         }
     }
 }
 
+@Composable
+fun SoundPackRowCard(
+    pack: SoundPack,
+    isPreviewing: Boolean,
+    isFavorite: Boolean,
+    onOpen: () -> Unit,
+    onPreview: () -> Unit,
+    onToggleFavorite: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(NavyCard)
+            .border(1.dp, if (isPreviewing) AccentCyan else NavyBorder, RoundedCornerShape(16.dp))
+            .clickable { onOpen() }
+            .padding(12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(56.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Brush.linearGradient(listOf(Color(pack.gradientStart), Color(pack.gradientEnd))))
+                .clickable { onPreview() },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = if (isPreviewing) Icons.Default.Stop else Icons.Default.PlayArrow,
+                contentDescription = "Preview",
+                tint = Color.White,
+                modifier = Modifier.size(28.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.width(12.dp))
+
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(pack.title, fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (pack.isCustom) {
+                    Text(
+                        "CUSTOM",
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Black,
+                        color = Color.Black,
+                        modifier = Modifier.clip(RoundedCornerShape(4.dp)).background(AccentYellow).padding(horizontal = 4.dp, vertical = 1.dp)
+                    )
+                }
+            }
+            Text("${pack.genre.label} • ${pack.bpm} BPM • ${pack.artist}", fontSize = 11.sp, color = AccentCyan, maxLines = 1)
+            Text(pack.subtitle, fontSize = 11.sp, color = TextSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+
+        IconButton(onClick = onToggleFavorite) {
+            Icon(
+                imageVector = if (isFavorite) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                contentDescription = "Favorite",
+                tint = if (isFavorite) AccentPink else TextSecondary,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .size(30.dp)
+                .clip(CircleShape)
+                .background(Color(0xFFFFB703))
+                .clickable { onOpen() },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Default.Bolt, contentDescription = "Load Pack", tint = Color.Black, modifier = Modifier.size(18.dp))
+        }
+    }
+}

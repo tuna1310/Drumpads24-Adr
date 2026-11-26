@@ -111,6 +111,7 @@ fun MiniPlayerBar(
     duration: String,
     isPlaying: Boolean,
     onTogglePlay: () -> Unit,
+    onNext: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -118,8 +119,8 @@ fun MiniPlayerBar(
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 4.dp)
             .clip(RoundedCornerShape(16.dp))
-            .background(NavySurface.copy(alpha = 0.9f))
-            .border(1.dp, NavyBorder.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
+            .background(NavySurface.copy(alpha = 0.94f))
+            .border(1.dp, NavyBorder.copy(alpha = 0.7f), RoundedCornerShape(16.dp))
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -132,7 +133,6 @@ fun MiniPlayerBar(
             contentAlignment = Alignment.Center
         ) {
             if (isPlaying) {
-                // Pause indicator: 2 vertical bars
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(3.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -156,17 +156,32 @@ fun MiniPlayerBar(
             text = trackTitle,
             color = TextPrimary,
             fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f)
         )
 
-        Spacer(modifier = Modifier.width(8.dp))
+        Spacer(modifier = Modifier.width(6.dp))
 
         Text(
             text = duration,
             color = TextSecondary,
             fontSize = 11.sp
         )
+
+        Spacer(modifier = Modifier.width(6.dp))
+
+        IconButton(
+            onClick = onNext,
+            modifier = Modifier.size(30.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.SkipNext,
+                contentDescription = "Next Track",
+                tint = AccentCyan,
+                modifier = Modifier.size(20.dp)
+            )
+        }
     }
 }
